@@ -14,10 +14,7 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // ✅ إذا لم تكن النافذة مفتوحة، لا نعرض شيئاً
   if (!isOpen) return null;
-
-  // ✅ إذا لم يكن هناك مستخدم، نعرض رسالة خطأ
   if (!user) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -48,10 +45,36 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
   const fee = activeTab === 'withdraw' ? parsedAmount * networkFees[network] : 0;
   const finalAmount = activeTab === 'withdraw' ? Math.max(0, parsedAmount - fee) : parsedAmount;
 
+  // ===== التحقق من صلاحية السحب (اليوم والوقت) =====
+  const isWithdrawAllowed = () => {
+    const now = new Date();
+    const day = now.getDay(); // 0 = الأحد
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const currentTime = hours + minutes / 60;
+
+    if (day === 0) {
+      return { allowed: false, message: '❌ السحب غير متاح يوم الأحد.' };
+    }
+    if (currentTime < 12 || currentTime >= 15) {
+      return { allowed: false, message: '⏰ السحب متاح فقط من الساعة 12:00 ظهراً إلى 3:00 عصراً.' };
+    }
+    return { allowed: true, message: '' };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
-    
+
+    // ✅ التحقق من صلاحية السحب (للتبويب النشط "withdraw")
+    if (activeTab === 'withdraw') {
+      const check = isWithdrawAllowed();
+      if (!check.allowed) {
+        setErrorMsg(check.message);
+        return;
+      }
+    }
+
     if (!amount || parsedAmount <= 0) {
       setErrorMsg('الرجاء إدخال مبلغ صحيح');
       return;
@@ -86,7 +109,7 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
         body: JSON.stringify(payload)
       });
       const data = await res.json();
-      
+
       if (data.success) {
         setSuccessMsg(activeTab === 'deposit' ? '✅ تم إرسال طلب الإيداع بنجاح' : '✅ تم إرسال طلب السحب بنجاح');
         setTxHash('');
@@ -108,7 +131,7 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
       <div className="relative w-full max-w-lg bg-[#030914]/90 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl text-white space-y-6">
         <button onClick={onClose} className="absolute top-5 left-5 p-2 rounded-full bg-white/5 border border-white/10 hover:border-cyan-400 text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
-        
+
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-black">{activeTab === 'deposit' ? 'إيداع رصيد' : 'سحب أرباح'}</h2>
           <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 border border-white/10 rounded-2xl">
@@ -146,7 +169,16 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
 
         {activeTab === 'withdraw' && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex justify-between"><span className="text-gray-400">الرصيد:</span><span className="font-bold text-orange-400">${user.balance || 0}</span></div>
+            <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex justify-between">
+              <span className="text-gray-400">الرصيد:</span>
+              <span className="font-bold text-orange-400">${user.balance || 0}</span>
+            </div>
+
+            {/* ✅ رسالة أوقات السحب */}
+            <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs text-center">
+              🕒 السحب متاح يومياً (ما عدا الأحد) من 12:00 ظهراً إلى 3:00 عصراً.
+            </div>
+
             <div><label className="text-xs font-bold text-gray-300">عنوان المحفظة:</label><input type="text" placeholder="أدخل العنوان..." value={address} onChange={(e) => setAddress(e.target.value)} required className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white outline-none font-mono text-xs" /></div>
             <div><label className="text-xs font-bold text-gray-300">المبلغ:</label>
               <div className="grid grid-cols-3 gap-2 mt-1">
