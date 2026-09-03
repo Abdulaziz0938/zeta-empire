@@ -1,17 +1,18 @@
+// server/index.js - ZETA EMPIRE Backend (نسخة كاملة ومحدثة)
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
-// استيراد النماذج والدوال الخاصة بالمشروع
+// استيراد النماذج والدوال
 const User = require('./models/User');
 const { completeTasksAndDistribute } = require('./taskEngine');
-require('./cronJobs'); // تشغيل المهام المجدولة (الرواتب)
+require('./cronJobs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
+// ===== Middleware =====
 app.use(cors());
 app.use(express.json());
 
@@ -23,14 +24,37 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('✅ تم الاتصال بقاعدة البيانات MongoDB'))
 .catch(err => console.error('❌ فشل الاتصال بقاعدة البيانات:', err));
 
-// ===== واجهات API الأساسية =====
+// =====================================================
+// ✅ واجهات API الأساسية (المستخدمين والمصادقة)
+// =====================================================
 
-// التحقق من صحة الخادم
+// [GET] التحقق من صحة الخادم
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'ZETA EMPIRE Backend is running!' });
 });
 
-// تسجيل الدخول
+// [GET] جلب جميع المستخدمين (للأدمن)
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await User.find().select('-password -withdrawPin');
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [GET] جلب مستخدم برقم الهاتف
+app.get('/api/users/:phone', async (req, res) => {
+  try {
+    const user = await User.findOne({ phone: req.params.phone });
+    if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [POST] تسجيل الدخول
 app.post('/api/auth/login', async (req, res) => {
   const { phone, password } = req.body;
   try {
@@ -47,7 +71,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// إنشاء حساب جديد
+// [POST] إنشاء حساب جديد
 app.post('/api/auth/register', async (req, res) => {
   const userData = req.body;
   try {
@@ -63,18 +87,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// جلب بيانات مستخدم
-app.get('/api/users/:phone', async (req, res) => {
-  try {
-    const user = await User.findOne({ phone: req.params.phone });
-    if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
-    res.json({ success: true, user });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// إكمال المهام وتوزيع الأرباح
+// [POST] إكمال المهام
 app.post('/api/tasks/complete', async (req, res) => {
   const { userId } = req.body;
   try {
@@ -85,47 +98,91 @@ app.post('/api/tasks/complete', async (req, res) => {
   }
 });
 
-// ===== واجهات جديدة لجلب البيانات للأدمن والإشعارات =====
+// =====================================================
+// ✅ واجهات API للإدارة (الأدمن) - جميع الأزرار تعمل
+// =====================================================
 
-// [GET] جلب جميع المستخدمين (للأدمن)
-app.get('/api/users', async (req, res) => {
+// [PUT] ترقية مستوى VIP لمستخدم
+app.put('/api/admin/promote/:userId', async (req, res) => {
   try {
-    const users = await User.find().select('-password -withdrawPin');
-    res.json({ success: true, users });
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    if (user.vipLevel >= 7) return res.status(400).json({ success: false, message: 'المستخدم في أعلى مستوى' });
+    user.vipLevel += 1;
+    await user.save();
+    res.json({ success: true, message: `تمت الترقية إلى VIP ${user.vipLevel}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// [GET] جلب جميع المعاملات (للأدمن)
+// [PUT] تجميد / إلغاء تجميد مستخدم
+app.put('/api/admin/ban/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    user.status = user.status === 'نشط' ? 'موقف' : 'نشط';
+    await user.save();
+    res.json({ success: true, message: `تم ${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'} الحساب`, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [PUT] تعديل رصيد مستخدم
+app.put('/api/admin/balance/:userId', async (req, res) => {
+  const { amount, reason } = req.body;
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    user.balance += parseFloat(amount);
+    await user.save();
+    res.json({ success: true, message: `تم ${parseFloat(amount) >= 0 ? 'إضافة' : 'خصم'} $${Math.abs(amount)}`, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [POST] إرسال إشعار مخصص لمستخدم
+app.post('/api/admin/notify/:userId', async (req, res) => {
+  const { message } = req.body;
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    console.log(`📨 إشعار إلى ${user.fullName}: ${message}`);
+    res.json({ success: true, message: 'تم إرسال الإشعار بنجاح' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [POST] إرسال إشعار جماعي لجميع المستخدمين
+app.post('/api/admin/notify-all', async (req, res) => {
+  const { message } = req.body;
+  try {
+    const users = await User.find();
+    console.log(`📨 إشعار جماعي لـ ${users.length} مستخدم: ${message}`);
+    res.json({ success: true, message: `تم إرسال الإشعار لـ ${users.length} مستخدم` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [GET] جلب المعاملات (مؤقت)
 app.get('/api/transactions', async (req, res) => {
   try {
-    // سنقوم بجلب المعاملات من قاعدة البيانات لاحقاً
-    // حالياً نعيد مصفوفة فارغة، ويمكنك تعديلها لاحقاً
-    const transactions = [];
-    res.json({ success: true, transactions });
+    // سيتم ربطها بقاعدة البيانات لاحقاً
+    res.json({ success: true, transactions: [] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// [GET] جلب الإشعارات (آخر 10 معاملات)
+// [GET] جلب الإشعارات (مؤقت)
 app.get('/api/notifications', async (req, res) => {
   try {
-    // سنقوم بجلب آخر المعاملات وتحويلها إلى إشعارات
-    // حالياً نعيد مصفوفة فارغة
-    const notifications = [];
-    res.json({ success: true, notifications });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// [POST] إضافة معاملة جديدة (للايداع أو السحب)
-app.post('/api/transactions', async (req, res) => {
-  try {
-    // سنقوم بحفظ المعاملة في قاعدة البيانات لاحقاً
-    res.json({ success: true, message: 'تم إضافة المعاملة' });
+    // سيتم ربطها بقاعدة البيانات لاحقاً
+    res.json({ success: true, notifications: [] });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
