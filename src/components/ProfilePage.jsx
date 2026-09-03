@@ -17,9 +17,8 @@ import {
 } from 'lucide-react';
 
 const ProfilePage = ({ user, lang = 'ar', setLang }) => {
-  const [activeTab, setActiveTab] = useState('all'); // all | deposit | withdraw | commission
+  const [activeTab, setActiveTab] = useState('all');
 
-  // قاموس النصوص والمصطلحات للغتين
   const t = {
     ar: {
       title: "الصفحة الشخصية والمالية",
@@ -75,15 +74,25 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
     }
   }[lang];
 
-  // بيانات افتراضية لمعاينة السجل المالي
-  const mockHistory = [
-    { id: 'TX-90812', type: 'commission', amount: 10.00, date: '2026-09-03 12:05 AM', status: 'completed', title: 'أرباح المهام اليومية VIP 3' },
-    { id: 'TX-90765', type: 'referral', amount: 5.00, date: '2026-09-02 04:30 PM', status: 'completed', title: 'عمولة إحالة فئة A (+96650***)' },
-    { id: 'TX-90411', type: 'withdraw', amount: 50.00, date: '2026-09-01 10:15 AM', status: 'pending', title: 'طلب سحب TRC20' },
-    { id: 'TX-89920', type: 'deposit', amount: 200.00, date: '2026-08-28 02:00 PM', status: 'completed', title: 'إيداع عقد VIP 3 (BEP20)' }
-  ];
+  // ✅ استخدام بيانات المستخدم الحقيقية
+  const userData = user || {
+    fullName: "مستخدم",
+    phone: "+966500000000",
+    vipLevel: 0,
+    balance: 0,
+    totalDeposit: 0,
+    totalWithdrawal: 0,
+    totalEarnings: 0,
+    referralEarnings: 0,
+    dailyEarnings: 0,
+    weeklyEarnings: 0,
+    monthlyEarnings: 0,
+    transactions: []
+  };
 
-  // تصفية السجل بناءً على الفئة المختارة
+  // ✅ مصفوفة فارغة تماماً (بدون بيانات وهمية)
+  const mockHistory = [];
+
   const filteredHistory = mockHistory.filter(item => {
     if (activeTab === 'all') return true;
     if (activeTab === 'deposit') return item.type === 'deposit';
@@ -96,7 +105,7 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
     <div className={`min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-6xl mx-auto space-y-8">
 
-        {/* الشريط العلوي للبروفايل ومبدل اللغات */}
+        {/* الشريط العلوي */}
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-2xl border border-[#00f3ff]/30 rounded-3xl p-6 shadow-[0_0_30px_rgba(0,243,255,0.15)] flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-500 to-[#00f3ff] p-0.5 shadow-[0_0_20px_#00f3ff]">
@@ -107,16 +116,16 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-gray-400 text-sm">{t.welcome}</span>
-                <h2 className="text-xl font-bold text-white">{user?.fullName || "Alpha User"}</h2>
+                <h2 className="text-xl font-bold text-white">{userData.fullName}</h2>
               </div>
-              <p className="text-xs font-mono text-cyan-400/80 mt-0.5">{user?.phone || "+966 50 000 0000"}</p>
+              <p className="text-xs font-mono text-cyan-400/80 mt-0.5">{userData.phone}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="px-4 py-2 rounded-2xl bg-yellow-400/10 border border-yellow-400/30 flex items-center gap-2">
               <Zap className="w-5 h-5 text-yellow-400 drop-shadow-[0_0_8px_#fde047]" />
-              <span className="text-yellow-300 font-bold text-sm">VIP {user?.vipLevel || 3}</span>
+              <span className="text-yellow-300 font-bold text-sm">VIP {userData.vipLevel}</span>
             </div>
 
             <button 
@@ -129,22 +138,22 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
           </div>
         </div>
 
-        {/* بطاقة الرصيد الإجمالي التنافسية */}
+        {/* بطاقة الرصيد */}
         <div className="bg-gradient-to-r from-cyan-900/40 via-[#00f3ff]/10 to-slate-900/80 backdrop-blur-2xl border border-[#00f3ff]/40 rounded-3xl p-6 md:p-8 shadow-[0_0_35px_rgba(0,243,255,0.2)]">
           <p className="text-sm text-cyan-300/80 font-medium">{t.totalBalance}</p>
           <h1 className="text-4xl md:text-6xl font-black text-white mt-2 tracking-tight drop-shadow-[0_0_15px_rgba(0,243,255,0.6)]">
-            ${(user?.balance || 215.50).toFixed(2)}
+            ${(userData.balance || 0).toFixed(2)}
           </h1>
         </div>
 
-        {/* شبكة حركة المال الأساسية (الإيداع، السحب، العمولات) */}
+        {/* الإحصائيات السريعة */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-5 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
             <div className="flex items-center justify-between text-cyan-400 mb-2">
               <span className="text-xs text-gray-400 font-medium">{t.totalDeposit}</span>
               <ArrowDownLeft className="w-5 h-5 text-green-400" />
             </div>
-            <p className="text-2xl font-bold text-white">${(user?.totalDeposit || 200).toFixed(2)}</p>
+            <p className="text-2xl font-bold text-white">${(userData.totalDeposit || 0).toFixed(2)}</p>
           </div>
 
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-5 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
@@ -152,7 +161,7 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
               <span className="text-xs text-gray-400 font-medium">{t.totalWithdrawal}</span>
               <ArrowUpRight className="w-5 h-5 text-orange-400" />
             </div>
-            <p className="text-2xl font-bold text-white">${(user?.totalWithdrawal || 50).toFixed(2)}</p>
+            <p className="text-2xl font-bold text-white">${(userData.totalWithdrawal || 0).toFixed(2)}</p>
           </div>
 
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-5 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
@@ -160,7 +169,7 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
               <span className="text-xs text-gray-400 font-medium">{t.totalEarnings}</span>
               <TrendingUp className="w-5 h-5 text-cyan-400" />
             </div>
-            <p className="text-2xl font-bold text-cyan-300">${(user?.totalEarnings || 65.50).toFixed(2)}</p>
+            <p className="text-2xl font-bold text-cyan-300">${(userData.totalEarnings || 0).toFixed(2)}</p>
           </div>
 
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-5 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
@@ -168,22 +177,22 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
               <span className="text-xs text-gray-400 font-medium">{t.referralEarnings}</span>
               <Award className="w-5 h-5 text-yellow-400" />
             </div>
-            <p className="text-2xl font-bold text-yellow-300">${(user?.referralEarnings || 15.50).toFixed(2)}</p>
+            <p className="text-2xl font-bold text-yellow-300">${(userData.referralEarnings || 0).toFixed(2)}</p>
           </div>
         </div>
 
-        {/* الأرباح الزمنية التراكمية (اليوم، الأسبوع، الشهر) */}
+        {/* الأرباح الزمنية */}
         <div className="bg-[#00f3ff]/[0.02] backdrop-blur-2xl border border-[#00f3ff]/20 rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.08)]">
           <h3 className="text-lg font-bold text-cyan-300 mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5 text-[#00f3ff]" />
-            الأرباح العائلية والتراكمية
+            الأرباح التراكمية
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400">{t.dailyEarnings}</p>
-                <p className="text-xl font-extrabold text-green-400 mt-1">+${(user?.dailyEarnings || 10.00).toFixed(2)}</p>
+                <p className="text-xl font-extrabold text-green-400 mt-1">+${(userData.dailyEarnings || 0).toFixed(2)}</p>
               </div>
               <Clock className="w-8 h-8 text-green-400/40" />
             </div>
@@ -191,7 +200,7 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
             <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400">{t.weeklyEarnings}</p>
-                <p className="text-xl font-extrabold text-cyan-300 mt-1">+${(user?.weeklyEarnings || 45.00).toFixed(2)}</p>
+                <p className="text-xl font-extrabold text-cyan-300 mt-1">+${(userData.weeklyEarnings || 0).toFixed(2)}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-cyan-400/40" />
             </div>
@@ -199,14 +208,14 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
             <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-400">{t.monthlyEarnings}</p>
-                <p className="text-xl font-extrabold text-yellow-300 mt-1">+${(user?.monthlyEarnings || 180.00).toFixed(2)}</p>
+                <p className="text-xl font-extrabold text-yellow-300 mt-1">+${(userData.monthlyEarnings || 0).toFixed(2)}</p>
               </div>
               <Receipt className="w-8 h-8 text-yellow-400/40" />
             </div>
           </div>
         </div>
 
-        {/* سجل الصادرات والواردات (Financial Statement History) */}
+        {/* سجل المعاملات */}
         <div className="bg-[#00f3ff]/[0.03] backdrop-blur-2xl border border-[#00f3ff]/20 rounded-3xl p-6 shadow-[0_0_25px_rgba(0,243,255,0.1)] space-y-6">
           
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
@@ -215,7 +224,6 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
               {t.financialHistory}
             </h3>
 
-            {/* أزرار تصفية السجل */}
             <div className="flex gap-2 p-1 bg-white/5 border border-white/10 rounded-2xl overflow-x-auto">
               {[
                 { key: 'all', label: t.filterAll },
@@ -238,7 +246,6 @@ const ProfilePage = ({ user, lang = 'ar', setLang }) => {
             </div>
           </div>
 
-          {/* قائمة المعاملات */}
           <div className="space-y-3">
             {filteredHistory.length === 0 ? (
               <p className="text-center text-gray-500 py-8">{t.noRecords}</p>
