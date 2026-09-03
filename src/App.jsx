@@ -44,26 +44,22 @@ const App = () => {
     return <AuthPortal onAuthSuccess={handleAuthSuccess} lang={lang} setLang={setLang} />;
   }
 
-  // ✅ نستخدم `user` مباشرة، وليس بيانات افتراضية
   return (
     <div className="min-h-screen bg-[#030914] text-white font-sans relative pb-28" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       
       <LiveToastSystem />
 
+      {/* ===== نافذة الإيداع والسحب (نسخة واحدة فقط) ===== */}
+      <FinanceModal 
         isOpen={isFinanceOpen} 
-  onClose={() => setIsFinanceOpen(false)} 
-  balance={userData.balance} 
-/>
-<FinanceModal 
-  isOpen={isFinanceOpen} 
-  onClose={() => setIsFinanceOpen(false)} 
-  user={userData}
-  balance={userData.balance} 
-  onTransactionSuccess={() => {
-    // تحديث البيانات بعد المعاملة
-    console.log('✅ تمت المعاملة بنجاح');
-  }}
-/>
+        onClose={() => setIsFinanceOpen(false)} 
+        user={user}
+        balance={user?.balance || 0}
+        onTransactionSuccess={() => {
+          console.log('✅ تمت المعاملة بنجاح');
+          // يمكنك إضافة تحديث للبيانات هنا
+        }}
+      />
 
       <header className="sticky top-0 z-40 bg-[#030914]/80 backdrop-blur-xl border-b border-[#00f3ff]/20 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -85,11 +81,11 @@ const App = () => {
               className="px-3 py-1.5 rounded-xl bg-[#00f3ff]/10 border border-[#00f3ff]/40 text-cyan-300 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,243,255,0.2)] hover:bg-[#00f3ff]/20 transition-all"
             >
               <Wallet className="w-4 h-4 text-[#00f3ff]" />
-              <span className="font-mono">${user.balance.toFixed(2)}</span>
+              <span className="font-mono">${(user?.balance || 0).toFixed(2)}</span>
             </button>
 
             {/* ✅ زر الأدمن يظهر فقط للمدير الفائق */}
-            {user.isAdmin === true && (
+            {user?.isAdmin === true && (
               <button
                 onClick={() => setActiveScreen(activeScreen === 'admin' ? 'home' : 'admin')}
                 className={`p-2 rounded-xl border transition-all ${
@@ -121,9 +117,9 @@ const App = () => {
             <div className="bg-gradient-to-r from-[#00f3ff]/20 via-cyan-900/30 to-slate-900/90 backdrop-blur-2xl border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_30px_rgba(0,243,255,0.15)] flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="space-y-2 text-center md:text-right">
                 <span className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold">
-                  مستوى العقد النشط: VIP {user.vipLevel}
+                  مستوى العقد النشط: VIP {user?.vipLevel || 0}
                 </span>
-                <h2 className="text-2xl md:text-3xl font-black text-white">مرحباً بك، {user.fullName}</h2>
+                <h2 className="text-2xl md:text-3xl font-black text-white">مرحباً بك، {user?.fullName}</h2>
                 <p className="text-xs text-gray-300">نفذ مهامك اليومية بضغطة زر للحصول على عمولات الفئة الحالية.</p>
               </div>
 
@@ -158,19 +154,19 @@ const App = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 text-center">
                 <p className="text-[11px] text-gray-400">أرباح اليوم</p>
-                <p className="text-xl font-bold text-green-400 mt-1 font-mono">+${user.dailyEarnings.toFixed(2)}</p>
+                <p className="text-xl font-bold text-green-400 mt-1 font-mono">+${(user?.dailyEarnings || 0).toFixed(2)}</p>
               </div>
               <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 text-center">
                 <p className="text-[11px] text-gray-400">أرباح الأسبوع</p>
-                <p className="text-xl font-bold text-cyan-300 mt-1 font-mono">+${user.weeklyEarnings.toFixed(2)}</p>
+                <p className="text-xl font-bold text-cyan-300 mt-1 font-mono">+${(user?.weeklyEarnings || 0).toFixed(2)}</p>
               </div>
               <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 text-center">
                 <p className="text-[11px] text-gray-400">عمولات الإحالة</p>
-                <p className="text-xl font-bold text-yellow-300 mt-1 font-mono">${user.referralEarnings.toFixed(2)}</p>
+                <p className="text-xl font-bold text-yellow-300 mt-1 font-mono">${(user?.referralEarnings || 0).toFixed(2)}</p>
               </div>
               <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 text-center">
                 <p className="text-[11px] text-gray-400">إجمالي الأرباح</p>
-                <p className="text-xl font-bold text-white mt-1 font-mono">${user.totalEarnings.toFixed(2)}</p>
+                <p className="text-xl font-bold text-white mt-1 font-mono">${(user?.totalEarnings || 0).toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -184,11 +180,11 @@ const App = () => {
           <VIPOverview user={user} lang={lang} onBack={() => setActiveScreen('home')} />
         )}
 
-        {activeScreen === 'admin' && user.isAdmin === true && (
+        {activeScreen === 'admin' && user?.isAdmin === true && (
           <AdminPanel onBack={() => setActiveScreen('home')} onNavigate={(screen) => setActiveScreen(screen)} />
         )}
 
-        {activeScreen === 'admin' && user.isAdmin !== true && (
+        {activeScreen === 'admin' && user?.isAdmin !== true && (
           <div className="text-center py-20">
             <ShieldAlert className="w-20 h-20 text-red-500 mx-auto mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)]" />
             <h2 className="text-2xl font-bold text-red-400">🚫 غير مصرح لك!</h2>

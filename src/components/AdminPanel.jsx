@@ -4,7 +4,7 @@ import {
   Search, RefreshCw, TrendingUp, Users, Wallet, AlertTriangle,
   Eye, Copy, Check, Send, Megaphone, Crown, Award, BarChart, ListChecks,
   Filter, Calendar, MessageSquare, UserX, UserCheck, Edit3, Home,
-  Zap, Moon, Sun, Lock, UserPlus
+  Zap, Moon, Sun, Lock, UserPlus, MinusCircle
 } from 'lucide-react';
 
 const AdminPanel = ({ onBack, onNavigate }) => {
@@ -37,7 +37,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  // ===== جلب البيانات من الخادم =====
+  // ===== جلب البيانات =====
   const fetchData = async () => {
     setIsLoading(true);
     try {
@@ -65,44 +65,29 @@ const AdminPanel = ({ onBack, onNavigate }) => {
 
   // ===== دوال الإجراءات =====
 
-  // ✅ قبول طلب
-  const handleApprove = async (id) => {
-    if (!confirm('تأكيد قبول الطلب؟')) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/approve/${id}`, { method: 'PUT' });
-      const data = await res.json();
-      if (data.success) {
-        alert('✅ تم قبول الطلب');
-        fetchData();
-      } else alert('❌ ' + data.message);
-    } catch (error) {
-      alert('❌ خطأ في الاتصال');
-    }
-  };
-
-  // ✅ رفض طلب
-  const handleReject = async (id) => {
-    if (!confirm('تأكيد رفض الطلب؟')) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/reject/${id}`, { method: 'PUT' });
-      const data = await res.json();
-      if (data.success) {
-        alert('❌ تم رفض الطلب');
-        fetchData();
-      } else alert('❌ ' + data.message);
-    } catch (error) {
-      alert('❌ خطأ في الاتصال');
-    }
-  };
-
-  // ✅ ترقية VIP
+  // ✅ رفع المستوى
   const handlePromoteVip = async (userId) => {
-    if (!confirm('تأكيد ترقية المستخدم؟')) return;
+    if (!confirm('تأكيد رفع مستوى VIP؟')) return;
     try {
       const res = await fetch(`${API_BASE}/api/admin/promote/${userId}`, { method: 'PUT' });
       const data = await res.json();
       if (data.success) {
         alert(`✅ تمت الترقية إلى VIP ${data.user.vipLevel}`);
+        fetchData();
+      } else alert('❌ ' + data.message);
+    } catch (error) {
+      alert('❌ خطأ في الاتصال');
+    }
+  };
+
+  // ✅ تخفيض المستوى (جديد)
+  const handleDemoteVip = async (userId) => {
+    if (!confirm('⚠️ تأكيد تخفيض مستوى VIP؟')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/demote/${userId}`, { method: 'PUT' });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ تم التخفيض إلى VIP ${data.user.vipLevel}`);
         fetchData();
       } else alert('❌ ' + data.message);
     } catch (error) {
@@ -125,7 +110,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ✅ تعديل الرصيد
+  // ✅ تعديل الرصيد (يدعم الإضافة والخصم)
   const handleEditBalance = (user) => {
     setEditBalanceUser(user);
     setEditAmount('');
@@ -135,7 +120,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
 
   const handleConfirmEditBalance = async () => {
     if (!editAmount || isNaN(editAmount) || parseFloat(editAmount) === 0) {
-      alert('⚠️ الرجاء إدخال مبلغ صحيح.');
+      alert('⚠️ الرجاء إدخال مبلغ صحيح (استخدم + للإضافة، - للخصم).');
       return;
     }
     try {
@@ -358,7 +343,8 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                     <div className="flex items-center gap-4 text-sm">
                       <span className="text-cyan-400 font-mono">VIP {u.vipLevel}</span>
                       <span className="text-green-400 font-bold">{u.referrals} إحالة</span>
-                      <button onClick={() => handlePromoteVip(u._id)} className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/40 transition-all">رفع VIP</button>
+                      <button onClick={() => handlePromoteVip(u._id)} className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/40 transition-all">رفع</button>
+                      <button onClick={() => handleDemoteVip(u._id)} className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 text-[10px] font-bold hover:bg-red-500/40 transition-all">تخفيض</button>
                     </div>
                   </div>
                 ))}
@@ -434,8 +420,8 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                         <td className="p-3 text-center">
                           {tx.status === 'pending' ? (
                             <div className="flex items-center justify-center gap-2">
-                              <button onClick={() => handleApprove(tx.id)} className="p-1.5 rounded-lg bg-green-500/20 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/30 transition-all" title="قبول"><CheckCircle2 className="w-4 h-4" /></button>
-                              <button onClick={() => handleReject(tx.id)} className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 transition-all" title="رفض"><XCircle className="w-4 h-4" /></button>
+                              <button onClick={() => {}} className="p-1.5 rounded-lg bg-green-500/20 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/30 transition-all" title="قبول"><CheckCircle2 className="w-4 h-4" /></button>
+                              <button onClick={() => {}} className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 transition-all" title="رفض"><XCircle className="w-4 h-4" /></button>
                             </div>
                           ) : (
                             <span className="text-gray-500 text-[10px]">تمت</span>
@@ -485,9 +471,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                         <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${u.status === 'نشط' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.status || 'نشط'}</span></td>
                         <td className="p-3">
                           <div className="flex items-center justify-center gap-1.5">
-                            <button onClick={() => handleSendUserNotification(u)} className="p-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500 text-cyan-400 hover:text-white border border-cyan-500/30 transition-all" title="إرسال إشعار مخصص"><MessageSquare className="w-4 h-4" /></button>
-                            <button onClick={() => handleEditBalance(u)} className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500 text-yellow-400 hover:text-white border border-yellow-500/30 transition-all" title="تحرير الرصيد"><Edit3 className="w-4 h-4" /></button>
+                            <button onClick={() => handleSendUserNotification(u)} className="p-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500 text-cyan-400 hover:text-white border border-cyan-500/30 transition-all" title="إشعار"><MessageSquare className="w-4 h-4" /></button>
+                            <button onClick={() => handleEditBalance(u)} className="p-1.5 rounded-lg bg-yellow-500/20 hover:bg-yellow-500 text-yellow-400 hover:text-white border border-yellow-500/30 transition-all" title="تعديل الرصيد"><Edit3 className="w-4 h-4" /></button>
                             <button onClick={() => handlePromoteVip(u._id)} className="p-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500 text-cyan-400 hover:text-white border border-cyan-500/30 transition-all" title="رفع VIP"><Crown className="w-4 h-4" /></button>
+                            <button onClick={() => handleDemoteVip(u._id)} className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 transition-all" title="تخفيض VIP"><MinusCircle className="w-4 h-4" /></button>
                             <button onClick={() => handleToggleBan(u._id)} className={`p-1.5 rounded-lg border transition-all ${u.status === 'نشط' ? 'bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border-red-500/30' : 'bg-green-500/20 hover:bg-green-500 text-green-400 hover:text-white border-green-500/30'}`} title={u.status === 'نشط' ? 'تجميد' : 'إلغاء التجميد'}>
                               {u.status === 'نشط' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                             </button>
@@ -506,7 +493,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         {activeTab === 'referrals' && (
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2"><Award className="w-6 h-6 text-yellow-400" /> قائمة المسوقين والمكافآت</h3>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2"><Award className="w-6 h-6 text-yellow-400" /> قائمة المسوقين</h3>
               <button onClick={() => alert('✅ تم صرف المكافآت!')} className="px-6 py-2 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(250,204,21,0.4)] hover:shadow-[0_0_30px_rgba(250,204,21,0.6)] transition-all flex items-center gap-2">
                 <Send className="w-4 h-4" /> صرف المكافآت
               </button>
@@ -550,9 +537,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ===== نوافذ منبثقة ===== */}
-
-        {/* نافذة تعديل الرصيد */}
+        {/* ===== نافذة تعديل الرصيد ===== */}
         {isEditBalanceModalOpen && editBalanceUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsEditBalanceModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
@@ -565,7 +550,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                   <input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="مثال: 50 أو -20" className="w-full mt-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff]" />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-gray-400">سبب التعديل</label>
+                  <label className="text-xs font-bold text-gray-400">سبب التعديل (اختياري)</label>
                   <input type="text" value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="مثال: مكافأة ترقية" className="w-full mt-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff]" />
                 </div>
               </div>
@@ -577,7 +562,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* نافذة الإشعار المخصص */}
+        {/* ===== نافذة الإشعار المخصص ===== */}
         {isUserNotificationModalOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsUserNotificationModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
@@ -592,7 +577,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* نافذة الإشعار الجماعي */}
+        {/* ===== نافذة الإشعار الجماعي ===== */}
         {isNotificationModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsNotificationModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>

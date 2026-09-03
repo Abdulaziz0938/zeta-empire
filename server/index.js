@@ -197,6 +197,20 @@ app.post('/api/tasks/complete', async (req, res) => {
   }
 });
 
+// [PUT] تخفيض مستوى VIP
+app.put('/api/admin/demote/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    if (user.vipLevel <= 0) return res.status(400).json({ success: false, message: 'المستخدم في أدنى مستوى' });
+    user.vipLevel -= 1;
+    await user.save();
+    res.json({ success: true, message: `تم التخفيض إلى VIP ${user.vipLevel}`, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 خادم ZETA EMPIRE يعمل على المنفذ ${PORT}`);
   console.log(`📡 رابط API: http://localhost:${PORT}/api/health`);
