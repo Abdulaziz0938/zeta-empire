@@ -9,6 +9,7 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showPin, setShowPin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState('');
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -80,8 +81,10 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setApiError('');
   };
 
+  // ✅ الدخول التجريبي (يبقى للاختبار لكنه يعطي بيانات وهمية)
   const handleDemoLogin = () => {
     setIsLoading(true);
     setTimeout(() => {
@@ -145,82 +148,81 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
     return true;
   };
 
-  const handleSubmit = (e) => {
+  // ============================================================
+  // ✅✅✅ القسم الجديد: الاتصال بقاعدة البيانات الحقيقية ✅✅✅
+  // ============================================================
+
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      
-      if (onAuthSuccess) {
-        let userData;
+    setApiError('');
 
-        if (isLogin) {
-          // ✅ التحقق من حساب الأدمن (مع مرونة في كتابة الرقم)
-          const cleanPhone = formData.phone.replace(/\s/g, '').replace(/^\+/, '');
-          if (cleanPhone === '999999999' && formData.password === 'admin0965') {
-            userData = {
-              fullName: "المدير الفائق",
-              phone: formData.phone,
-              vipLevel: 7,
-              balance: 9999.99,
-              totalDeposit: 10000,
-              totalWithdrawal: 0,
-              totalEarnings: 9999.99,
-              referralEarnings: 0,
-              dailyEarnings: 0,
-              weeklyEarnings: 0,
-              monthlyEarnings: 0,
-              inviteCode: "ADMIN001",
-              tasksCompletedToday: 0,
-              isAdmin: true
-            };
-            alert('✅ مرحباً أيها المدير الفائق!');
-          } else {
-            // ❌ مستخدم عادي (تسجيل دخول)
-            userData = {
-              fullName: formData.fullName || "المستخدم النشط",
-              phone: formData.phone,
-              vipLevel: 3,
-              balance: 215.50,
-              totalDeposit: 200,
-              totalWithdrawal: 50,
-              totalEarnings: 65.50,
-              referralEarnings: 15.50,
-              dailyEarnings: 10.00,
-              weeklyEarnings: 45.00,
-              monthlyEarnings: 180.00,
-              inviteCode: "ZETA99",
-              tasksCompletedToday: 0,
-              isAdmin: false
-            };
-            alert('✅ تم تسجيل الدخول بنجاح!');
-          }
-        } else {
-          // ✅ حساب جديد: كل القيم صفر
-          userData = {
-            fullName: formData.fullName,
-            phone: formData.phone,
-            vipLevel: 0,
-            balance: 0,
-            totalDeposit: 0,
-            totalWithdrawal: 0,
-            totalEarnings: 0,
-            referralEarnings: 0,
-            dailyEarnings: 0,
-            weeklyEarnings: 0,
-            monthlyEarnings: 0,
-            inviteCode: formData.referralCode || "ZETA" + Math.floor(1000 + Math.random() * 9000),
-            tasksCompletedToday: 0,
-            isAdmin: false
-          };
-          alert('✅ تم إنشاء الحساب بنجاح!');
-        }
+    try {
+      const cleanPhone = formData.phone.replace(/\s/g, '').replace(/^\+/, '');
+      let endpoint, payload, response;
 
-        onAuthSuccess(userData);
+      if (isLogin) {
+        // ✅ تسجيل الدخول الحقيقي
+        endpoint = `${API_BASE}/api/auth/login`;
+        payload = { phone: cleanPhone, password: formData.password };
+      } else {
+        // ✅ إنشاء حساب جديد حقيقي
+        endpoint = `${API_BASE}/api/auth/register`;
+        payload = {
+          fullName: formData.fullName,
+          phone: cleanPhone,
+          password: formData.password,
+          withdrawPin: formData.withdrawPin.join(''),
+          inviteCode: formData.referralCode || "ZETA" + Math.floor(1000 + Math.random() * 9000),
+          vipLevel: 0,
+          balance: 0,
+          totalDeposit: 0,
+          totalWithdrawal: 0,
+          totalEarnings: 0,
+          referralEarnings: 0,
+          dailyEarnings: 0,
+          weeklyEarnings: 0,
+          monthlyEarnings: 0,
+          isAdmin: false
+        };
       }
-    }, 1500);
+
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // ✅ نجاح تسجيل الدخول / إنشاء الحساب
+        const userData = data.user;
+        // التحقق من حساب الأدمن الخاص
+        if (isLogin && cleanPhone === '999999999' && formData.password === 'admin0965') {
+          userData.isAdmin = true;
+          userData.fullName = "المدير الفائق";
+          userData.vipLevel = 7;
+          userData.balance = 9999.99;
+        }
+        alert(isLogin ? '✅ تم تسجيل الدخول بنجاح!' : '✅ تم إنشاء الحساب بنجاح!');
+        onAuthSuccess(userData);
+      } else {
+        // ❌ فشل من الخادم
+        setApiError(data.message || 'حدث خطأ، يرجى المحاولة مرة أخرى.');
+        alert('❌ ' + (data.message || 'حدث خطأ!'));
+      }
+    } catch (error) {
+      console.error('❌ خطأ في الاتصال بالخادم:', error);
+      setApiError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+      alert('❌ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -259,11 +261,18 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
           <div className="relative flex justify-center text-xs"><span className="px-4 bg-[#030914] text-gray-500">أو سجل بالطريقة العادية</span></div>
         </div>
 
+        {/* ✅ عرض خطأ API */}
+        {apiError && (
+          <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs text-center">
+            {apiError}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-2 p-1.5 bg-white/5 border border-white/10 rounded-2xl">
-          <button onClick={() => { setIsLogin(true); setErrors({}); }} className={`py-3 rounded-xl text-xs md:text-sm font-bold transition-all ${isLogin ? 'bg-[#00f3ff] text-slate-950 shadow-[0_0_20px_rgba(0,243,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
+          <button onClick={() => { setIsLogin(true); setErrors({}); setApiError(''); }} className={`py-3 rounded-xl text-xs md:text-sm font-bold transition-all ${isLogin ? 'bg-[#00f3ff] text-slate-950 shadow-[0_0_20px_rgba(0,243,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
             {t.loginTab}
           </button>
-          <button onClick={() => { setIsLogin(false); setErrors({}); }} className={`py-3 rounded-xl text-xs md:text-sm font-bold transition-all ${!isLogin ? 'bg-[#00f3ff] text-slate-950 shadow-[0_0_20px_rgba(0,243,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
+          <button onClick={() => { setIsLogin(false); setErrors({}); setApiError(''); }} className={`py-3 rounded-xl text-xs md:text-sm font-bold transition-all ${!isLogin ? 'bg-[#00f3ff] text-slate-950 shadow-[0_0_20px_rgba(0,243,255,0.4)]' : 'text-gray-400 hover:text-white'}`}>
             {t.registerTab}
           </button>
         </div>
@@ -331,7 +340,7 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
 
         <div className="text-center pt-2 border-t border-white/5 text-xs text-gray-400">
           <span>{isLogin ? t.noAccount : t.hasAccount} </span>
-          <button type="button" onClick={() => { setIsLogin(!isLogin); setErrors({}); }} className="text-cyan-400 font-bold hover:underline">{isLogin ? t.registerTab : t.loginTab}</button>
+          <button type="button" onClick={() => { setIsLogin(!isLogin); setErrors({}); setApiError(''); }} className="text-cyan-400 font-bold hover:underline">{isLogin ? t.registerTab : t.loginTab}</button>
         </div>
 
       </div>
