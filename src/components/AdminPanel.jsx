@@ -64,10 +64,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   }, []);
 
   // ============================================================
-  // ✅ دوال الإجراءات (مع إصلاح قبول/رفض الطلبات)
+  // ✅ دوال الإجراءات (مع إصلاح استخدام _id)
   // ============================================================
 
-  // ✅ قبول طلب (يعمل ويحدث الحالة)
+  // ✅ قبول طلب
   const handleApprove = async (txId) => {
     if (!confirm('✅ تأكيد قبول الطلب؟')) return;
     try {
@@ -78,12 +78,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const data = await res.json();
       if (data.success) {
         alert('✅ تم قبول الطلب بنجاح');
-        // تحديث الحالة في القائمة مباشرة
         setTransactions(prev => prev.map(tx => 
-          tx.id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
+          tx._id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
         ));
         setAuditLogs(prev => [{ id: Date.now(), admin: 'المدير الفائق', action: `قبول طلب #${txId}`, timestamp: new Date().toLocaleString('ar-EG') }, ...prev]);
-        fetchData(); // تحديث شامل
+        fetchData();
       } else {
         alert('❌ ' + data.message);
       }
@@ -92,7 +91,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ✅ رفض طلب (يعمل ويحدث الحالة)
+  // ✅ رفض طلب
   const handleReject = async (txId) => {
     if (!confirm('❌ تأكيد رفض الطلب؟')) return;
     try {
@@ -104,7 +103,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       if (data.success) {
         alert('❌ تم رفض الطلب');
         setTransactions(prev => prev.map(tx => 
-          tx.id === txId ? { ...tx, status: 'rejected', adminAction: 'تم الرفض بواسطة المدير' } : tx
+          tx._id === txId ? { ...tx, status: 'rejected', adminAction: 'تم الرفض بواسطة المدير' } : tx
         ));
         setAuditLogs(prev => [{ id: Date.now(), admin: 'المدير الفائق', action: `رفض طلب #${txId}`, timestamp: new Date().toLocaleString('ar-EG') }, ...prev]);
         fetchData();
@@ -254,7 +253,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   );
 
   const filteredTransactions = transactions.filter(tx => {
-    const matchesSearch = tx.userName?.includes(searchTerm) || tx.phone?.includes(searchTerm) || tx.id?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = tx.userName?.includes(searchTerm) || tx.phone?.includes(searchTerm) || tx._id?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesType = filterType === 'all' || tx.type === filterType;
     return matchesSearch && matchesType;
   });
@@ -268,7 +267,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const totalFees = transactions.filter(t => t.status === 'approved').reduce((acc, t) => acc + (t.type === 'withdraw' ? t.amount * 0.05 : 0), 0);
   const topReferrers = [...users].sort((a, b) => b.referrals - a.referrals).slice(0, 5);
 
-  // ✅ إحصائيات متقدمة (اقتراح 4)
+  // ✅ إحصائيات متقدمة
   const vipDistribution = [0,1,2,3,4,5,6,7].map(level => ({
     level,
     count: users.filter(u => u.vipLevel === level).length
@@ -301,7 +300,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     { key: 'audit', label: 'سجل الإجراءات', icon: Clock },
   ];
 
-  // ===== التصميم (دعم الوضع المظلم والنهاري) =====
+  // ===== التصميم =====
   const bgColor = isDarkMode ? 'bg-[#030914]' : 'bg-gray-50';
   const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
   const cardBg = isDarkMode ? 'bg-[#00f3ff]/[0.02]' : 'bg-white/90';
@@ -322,7 +321,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
 
       <div className="max-w-7xl mx-auto space-y-6 relative">
         
-        {/* ===== الهيدر (مع زر تبديل الوضع النهاري/المظلم) ===== */}
+        {/* ===== الهيدر ===== */}
         <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_30px_rgba(0,243,255,0.1)] flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-300`}>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#00f3ff] to-cyan-500 flex items-center justify-center text-slate-950 font-black shadow-[0_0_20px_#00f3ff]">
@@ -335,15 +334,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap justify-center">
-            {/* ✅ زر تبديل الوضع (Light/Dark) - اقتراح 6 */}
-            <button 
-              onClick={() => setIsDarkMode(!isDarkMode)} 
-              className={`px-4 py-2 rounded-2xl border transition-all flex items-center gap-2 text-xs font-bold ${
-                isDarkMode 
-                  ? 'bg-white/10 border-white/20 text-yellow-300 hover:bg-white/20' 
-                  : 'bg-gray-200/80 border-gray-300 text-gray-700 hover:bg-gray-300'
-              }`}
-            >
+            <button onClick={() => setIsDarkMode(!isDarkMode)} className={`px-4 py-2 rounded-2xl border transition-all flex items-center gap-2 text-xs font-bold ${isDarkMode ? 'bg-white/10 border-white/20 text-yellow-300 hover:bg-white/20' : 'bg-gray-200/80 border-gray-300 text-gray-700 hover:bg-gray-300'}`}>
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               <span>{isDarkMode ? '☀️ نهاري' : '🌙 ليلي'}</span>
             </button>
@@ -363,7 +354,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         </div>
 
-        {/* ===== كروت الإحصائيات (مع إحصائيات متقدمة) ===== */}
+        {/* ===== كروت الإحصائيات ===== */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center transition-colors`}>
             <Users className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
@@ -411,10 +402,9 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         </div>
 
         {/* ============================================================ */}
-        {/* ===== 1. نظرة عامة (مع إحصائيات متقدمة) ===== */}
+        {/* ===== 1. نظرة عامة ===== */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            {/* أفضل المسوقين */}
             <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] transition-colors`}>
               <h3 className={`text-lg font-bold ${isDarkMode ? 'text-cyan-300' : 'text-cyan-700'} flex items-center gap-2 mb-4`}>
                 <Award className="w-5 h-5 text-yellow-400" />
@@ -439,9 +429,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
               </div>
             </div>
 
-            {/* ✅ إحصائيات متقدمة: رسم بياني + توزيع VIP (اقتراح 4) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* الرسم البياني لآخر 7 أيام */}
               <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6 transition-colors`}>
                 <h4 className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4 flex items-center gap-2`}>
                   <TrendingUp className="w-4 h-4 text-cyan-400" /> حركة الأيام السبعة الماضية
@@ -463,7 +451,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                 </div>
               </div>
 
-              {/* توزيع المستخدمين حسب VIP */}
               <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6 transition-colors`}>
                 <h4 className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4 flex items-center gap-2`}>
                   <PieChart className="w-4 h-4 text-cyan-400" /> توزيع المستخدمين حسب VIP
@@ -485,7 +472,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
               </div>
             </div>
 
-            {/* آخر الإجراءات */}
             <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6 transition-colors`}>
               <h4 className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-3 flex items-center gap-2`}>
                 <Clock className="w-4 h-4 text-cyan-400" /> آخر الإجراءات
@@ -507,7 +493,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         )}
 
         {/* ============================================================ */}
-        {/* ===== 2. المعاملات (مع أزرار قبول/رفض فعالة) ===== */}
+        {/* ===== 2. المعاملات ===== */}
         {activeTab === 'transactions' && (
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-4 md:p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
             
@@ -549,8 +535,8 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                     <tr><td colSpan="7" className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>لا توجد معاملات</td></tr>
                   ) : (
                     filteredTransactions.map(tx => (
-                      <tr key={tx.id} className={`hover:${isDarkMode ? 'bg-white/5' : 'bg-gray-100/50'} transition-colors`}>
-                        <td className="p-3 font-mono font-bold ${textColor}">{tx.id}</td>
+                      <tr key={tx._id} className={`hover:${isDarkMode ? 'bg-white/5' : 'bg-gray-100/50'} transition-colors`}>
+                        <td className="p-3 font-mono font-bold ${textColor}">{tx._id}</td>
                         <td className="p-3"><span className={`block ${textColor}`}>{tx.userName}</span><span className="text-[10px] text-cyan-400 font-mono">{tx.phone}</span></td>
                         <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'deposit' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>{tx.type === 'deposit' ? 'إيداع' : 'سحب'}</span></td>
                         <td className="p-3 font-mono font-bold"><span className={tx.type === 'deposit' ? 'text-green-400' : 'text-orange-400'}>${tx.amount}</span></td>
@@ -559,8 +545,8 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                         <td className="p-3 text-center">
                           {tx.status === 'pending' ? (
                             <div className="flex items-center justify-center gap-2">
-                              <button onClick={() => handleApprove(tx.id)} className="p-1.5 rounded-lg bg-green-500/20 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/30 transition-all" title="قبول"><CheckCircle2 className="w-4 h-4" /></button>
-                              <button onClick={() => handleReject(tx.id)} className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 transition-all" title="رفض"><XCircle className="w-4 h-4" /></button>
+                              <button onClick={() => handleApprove(tx._id)} className="p-1.5 rounded-lg bg-green-500/20 hover:bg-green-500 text-green-400 hover:text-white border border-green-500/30 transition-all" title="قبول"><CheckCircle2 className="w-4 h-4" /></button>
+                              <button onClick={() => handleReject(tx._id)} className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 transition-all" title="رفض"><XCircle className="w-4 h-4" /></button>
                             </div>
                           ) : (
                             <span className={`${isDarkMode ? 'text-gray-500' : 'text-gray-400'} text-[10px]`}>تمت</span>
@@ -679,11 +665,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ============================================================ */}
         {/* ===== النوافذ المنبثقة (Modals) ===== */}
-        {/* (نفس الكود السابق مع تحديث بسيط في الألوان) */}
-
-        {/* نافذة تعديل الرصيد */}
         {isEditBalanceModalOpen && editBalanceUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsEditBalanceModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
@@ -708,7 +690,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* نافذة الإشعار المخصص */}
         {isUserNotificationModalOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsUserNotificationModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
@@ -723,7 +704,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* نافذة الإشعار الجماعي */}
         {isNotificationModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsNotificationModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
