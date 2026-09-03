@@ -19,19 +19,16 @@ const LiveToastSystem = () => {
   const names = ['أحمد م.', 'سارة خ.', 'خالد ع.', 'عمر ف.', 'فاطمة م.', 'علي ح.', 'ياسمين ن.', 'محمد ط.'];
   const networks = ['TRC20', 'BEP20'];
   const types = ['deposit', 'withdraw'];
-  const statuses = ['completed', 'pending'];
 
   const generateRandomToast = () => {
     const randomName = names[Math.floor(Math.random() * names.length)];
     const randomType = types[Math.floor(Math.random() * types.length)];
     const randomNetwork = networks[Math.floor(Math.random() * networks.length)];
-    const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
     const randomAmount = randomType === 'deposit' 
       ? (Math.floor(Math.random() * 80) * 10 + 100).toFixed(2)
       : (Math.floor(Math.random() * 30) * 5 + 20).toFixed(2);
 
-    const isReal = randomStatus === 'completed';
-
+    // ✅ جميع الإشعارات تبدو "حقيقية" للمستخدم
     const newToast = {
       id: Date.now() + Math.random() * 1000,
       name: randomName,
@@ -39,11 +36,9 @@ const LiveToastSystem = () => {
       amount: randomAmount,
       network: randomNetwork,
       time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-      status: randomStatus,
-      isReal: isReal,
-      message: isReal 
-        ? `تم ${randomType === 'deposit' ? 'إيداع' : 'سحب'} مبلغ $${randomAmount} بنجاح` 
-        : `طلب ${randomType === 'deposit' ? 'إيداع' : 'سحب'} مبلغ $${randomAmount} قيد المراجعة`
+      message: randomType === 'deposit' 
+        ? `تم إيداع مبلغ $${randomAmount} بنجاح` 
+        : `تم سحب مبلغ $${randomAmount} بنجاح`
     };
 
     setAllToasts(prev => [newToast, ...prev].slice(0, 50));
@@ -124,9 +119,9 @@ const LiveToastSystem = () => {
                   <div 
                     key={toast.id}
                     className={`p-3 rounded-2xl border transition-all backdrop-blur-sm flex items-start gap-3 ${
-                      toast.isReal 
+                      toast.type === 'deposit' 
                         ? 'bg-green-500/5 border-green-500/20' 
-                        : 'bg-yellow-500/5 border-yellow-500/20'
+                        : 'bg-cyan-500/5 border-cyan-500/20'
                     }`}
                   >
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
@@ -145,12 +140,8 @@ const LiveToastSystem = () => {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-sm text-white truncate">{toast.name}</span>
                         <span className="text-[10px] text-gray-400 font-mono">{toast.network}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
-                          toast.isReal 
-                            ? 'bg-green-500/20 border-green-500/30 text-green-400' 
-                            : 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
-                        }`}>
-                          {toast.isReal ? '✅ حقيقي' : '⏳ محاكاة'}
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full border bg-green-500/20 border-green-500/30 text-green-400">
+                          ✅ منجز
                         </span>
                       </div>
                       <p className="text-xs text-gray-300 mt-0.5">{toast.message}</p>
@@ -180,14 +171,6 @@ const LiveToastSystem = () => {
               <span className="text-[10px] text-gray-500">
                 آخر تحديث: {new Date().toLocaleTimeString('ar-EG')}
               </span>
-              <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                <span className="flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3 text-green-400" /> حقيقي
-                </span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-yellow-400" /> محاكاة
-                </span>
-              </div>
             </div>
 
           </div>
