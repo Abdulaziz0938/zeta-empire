@@ -20,20 +20,30 @@ const LiveToastSystem = () => {
   const networks = ['TRC20', 'BEP20'];
   const types = ['deposit', 'withdraw'];
 
+  // ✅ مبالغ الإيداع المنطقية
+  const depositAmounts = [50, 100, 200, 500, 1000, 1500, 3000];
+  
+  // ✅ مبالغ السحب المحددة (كما في نظامك)
+  const withdrawAmounts = [14, 25, 50, 100, 200, 500, 1000];
+
   const generateRandomToast = () => {
     const randomName = names[Math.floor(Math.random() * names.length)];
     const randomType = types[Math.floor(Math.random() * types.length)];
     const randomNetwork = networks[Math.floor(Math.random() * networks.length)];
-    const randomAmount = randomType === 'deposit' 
-      ? (Math.floor(Math.random() * 80) * 10 + 100).toFixed(2)
-      : (Math.floor(Math.random() * 30) * 5 + 20).toFixed(2);
+    
+    // ✅ اختيار مبلغ مناسب حسب نوع العملية
+    let randomAmount;
+    if (randomType === 'deposit') {
+      randomAmount = depositAmounts[Math.floor(Math.random() * depositAmounts.length)];
+    } else {
+      randomAmount = withdrawAmounts[Math.floor(Math.random() * withdrawAmounts.length)];
+    }
 
-    // ✅ جميع الإشعارات تبدو "حقيقية" للمستخدم
     const newToast = {
       id: Date.now() + Math.random() * 1000,
       name: randomName,
       type: randomType,
-      amount: randomAmount,
+      amount: randomAmount.toFixed(2),
       network: randomNetwork,
       time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
       message: randomType === 'deposit' 
