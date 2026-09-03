@@ -104,10 +104,74 @@ app.get('/api/transactions/user/:userId', async (req, res) => {
   }
 });
 
-// ==================== الإشعارات الحقيقية ====================
+// ==================== ✅ قبول ورفض الطلبات (الإضافة الجديدة) ====================
+
+// قبول طلب
+app.put('/api/admin/approve/:transactionId', async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.transactionId);
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
+    }
+    if (transaction.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'تم معالجة هذه المعاملة مسبقاً' });
+    }
+
+    // تحديث حالة المعاملة
+    transaction.status = 'approved';
+    transaction.adminAction = 'تم القبول بواسطة المدير';
+    await transaction.save();
+
+    // إذا كانت المعاملة إيداعاً، نضيف المبلغ إلى رصيد المستخدم
+    if (transaction.type === 'deposit') {
+      const user = await User.findById(transaction.userId);
+      if (user) {
+        user.balance += transaction.amount;
+        user.totalDeposit += transaction.amount;
+        await user.save();
+      }
+    }
+
+    // إذا كانت المعاملة سحباً، نخصم المبلغ من رصيد المستخدم (بعد الموافقة)
+    if (transaction.type === 'withdraw') {
+      const user = await User.findById(transaction.userId);
+      if (user) {
+        user.balance -= transaction.amount;
+        user.totalWithdrawal += transaction.amount;
+        await user.save();
+      }
+    }
+
+    res.json({ success: true, message: 'تم قبول الطلب بنجاح', transaction });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// رفض طلب
+app.put('/api/admin/reject/:transactionId', async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.transactionId);
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
+    }
+    if (transaction.status !== 'pending') {
+      return res.status(400).json({ success: false, message: 'تم معالجة هذه المعاملة مسبقاً' });
+    }
+
+    transaction.status = 'rejected';
+    transaction.adminAction = 'تم الرفض بواسطة المدير';
+    await transaction.save();
+
+    res.json({ success: true, message: 'تم رفض الطلب', transaction });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ==================== الإشعارات ====================
 app.get('/api/notifications', async (req, res) => {
   try {
-    // جلب آخر 10 معاملات كمصدر للإشعارات
     const txs = await Transaction.find({ status: 'approved' }).sort({ createdAt: -1 }).limit(10);
     const notifications = txs.map(tx => ({
       id: tx._id,
@@ -138,13 +202,26 @@ app.put('/api/admin/promote/:userId', async (req, res) => {
   }
 });
 
+app.put('/api/admin/demote/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    if (user.vipLevel <= 0) return res.status(400).json({ success: false, message: 'المستخدم في أدنى مستوى' });
+    user.vipLevel -= 1;
+    await user.save();
+    res.json({ success: true, message: `تم التخفيض إلى VIP ${user.vipLevel}`, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.put('/api/admin/ban/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     user.status = user.status === 'نشط' ? 'موقف' : 'نشط';
     await user.save();
-    res.json({ success: true, message: `تم ${user.status === 'موقف' ? 'تجميد' : 'إلغاء التجميد'}`, user });
+    res.json({ success: true, message: `تم ${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -192,20 +269,6 @@ app.post('/api/tasks/complete', async (req, res) => {
   try {
     const result = await completeTasksAndDistribute(userId);
     res.json({ success: true, result });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// [PUT] تخفيض مستوى VIP
-app.put('/api/admin/demote/:userId', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId);
-    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-    if (user.vipLevel <= 0) return res.status(400).json({ success: false, message: 'المستخدم في أدنى مستوى' });
-    user.vipLevel -= 1;
-    await user.save();
-    res.json({ success: true, message: `تم التخفيض إلى VIP ${user.vipLevel}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
