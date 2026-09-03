@@ -14,7 +14,21 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  if (!isOpen || !user) return null;
+  // ✅ إذا لم تكن النافذة مفتوحة، لا نعرض شيئاً
+  if (!isOpen) return null;
+
+  // ✅ إذا لم يكن هناك مستخدم، نعرض رسالة خطأ
+  if (!user) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+        <div className="relative w-full max-w-lg bg-[#030914]/90 border border-red-500/40 rounded-3xl p-6 text-white text-center">
+          <h3 className="text-xl font-bold text-red-400">⚠️ خطأ</h3>
+          <p className="text-gray-300 mt-2">لم يتم تحميل بيانات المستخدم. حاول تسجيل الخروج والدخول مرة أخرى.</p>
+          <button onClick={onClose} className="mt-4 px-6 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold">إغلاق</button>
+        </div>
+      </div>
+    );
+  }
 
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
   const withdrawAmounts = [14, 25, 50, 100, 200, 500, 1000];
@@ -46,7 +60,7 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
       setErrorMsg('الرجاء إدخال رقم المعاملة (TxID)');
       return;
     }
-    if (activeTab === 'withdraw' && parsedAmount > user.balance) {
+    if (activeTab === 'withdraw' && parsedAmount > (user.balance || 0)) {
       setErrorMsg('الرصيد غير كافٍ');
       return;
     }
@@ -132,7 +146,7 @@ const FinanceModal = ({ isOpen, onClose, user, onTransactionSuccess }) => {
 
         {activeTab === 'withdraw' && (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex justify-between"><span className="text-gray-400">الرصيد:</span><span className="font-bold text-orange-400">${user.balance}</span></div>
+            <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex justify-between"><span className="text-gray-400">الرصيد:</span><span className="font-bold text-orange-400">${user.balance || 0}</span></div>
             <div><label className="text-xs font-bold text-gray-300">عنوان المحفظة:</label><input type="text" placeholder="أدخل العنوان..." value={address} onChange={(e) => setAddress(e.target.value)} required className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white outline-none font-mono text-xs" /></div>
             <div><label className="text-xs font-bold text-gray-300">المبلغ:</label>
               <div className="grid grid-cols-3 gap-2 mt-1">

@@ -50,11 +50,20 @@ const App = () => {
       
       <LiveToastSystem />
 
-      <FinanceModal 
         isOpen={isFinanceOpen} 
-        onClose={() => setIsFinanceOpen(false)} 
-        balance={user.balance} 
-      />
+  onClose={() => setIsFinanceOpen(false)} 
+  balance={userData.balance} 
+/>
+<FinanceModal 
+  isOpen={isFinanceOpen} 
+  onClose={() => setIsFinanceOpen(false)} 
+  user={userData}
+  balance={userData.balance} 
+  onTransactionSuccess={() => {
+    // تحديث البيانات بعد المعاملة
+    console.log('✅ تمت المعاملة بنجاح');
+  }}
+/>
 
       <header className="sticky top-0 z-40 bg-[#030914]/80 backdrop-blur-xl border-b border-[#00f3ff]/20 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
