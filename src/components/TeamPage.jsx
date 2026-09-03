@@ -15,10 +15,9 @@ import {
 } from 'lucide-react';
 
 const TeamPage = ({ user, lang = 'ar' }) => {
-  const [activeTab, setActiveTab] = useState('A'); // A | B | C
+  const [activeTab, setActiveTab] = useState('A');
   const [copied, setCopied] = useState(false);
 
-  // النصوص باللغتين
   const t = {
     ar: {
       title: "شجرة الفريق والدخل السلبي",
@@ -58,23 +57,14 @@ const TeamPage = ({ user, lang = 'ar' }) => {
     }
   }[lang];
 
-  // بيانات افتراضية لأعضاء الفريق للتجربة والمعاينة
+  // ✅ بيانات الفريق الحقيقية من المستخدم، أو مصفوفات فارغة إذا لم تكن موجودة
   const teamData = {
-    A: [
-      { id: 1, phone: "+96650***4567", vip: 3, deposit: 200, passiveProfit: 45.00, status: "Active" },
-      { id: 2, phone: "+97150***7654", vip: 5, deposit: 800, passiveProfit: 192.00, status: "Active" },
-      { id: 3, phone: "+96560***2233", vip: 1, deposit: 50, passiveProfit: 8.50, status: "Active" }
-    ],
-    B: [
-      { id: 4, phone: "+96890***1122", vip: 2, deposit: 100, passiveProfit: 13.50, status: "Active" },
-      { id: 5, phone: "+97455***9988", vip: 4, deposit: 400, passiveProfit: 66.00, status: "Active" }
-    ],
-    C: [
-      { id: 6, phone: "+96279***3344", vip: 1, deposit: 50, passiveProfit: 2.50, status: "Active" }
-    ]
+    A: user?.teamA || [],
+    B: user?.teamB || [],
+    C: user?.teamC || []
   };
 
-  const inviteCode = user?.inviteCode || "ZETA99";
+  const inviteCode = user?.inviteCode || "ZETA" + Math.floor(1000 + Math.random() * 9000);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(inviteCode);
@@ -82,17 +72,15 @@ const TeamPage = ({ user, lang = 'ar' }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // حساب الإحصائيات العامة
   const totalMembers = teamData.A.length + teamData.B.length + teamData.C.length;
   const totalPassiveEarnings = [
     ...teamData.A, ...teamData.B, ...teamData.C
-  ].reduce((acc, m) => acc + m.passiveProfit, 0);
+  ].reduce((acc, m) => acc + (m.passiveProfit || 0), 0);
 
   return (
     <div className={`min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-6xl mx-auto space-y-8">
 
-        {/* Header Title */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl md:text-5xl font-black tracking-wider bg-gradient-to-r from-white via-cyan-300 to-cyan-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(0,243,255,0.6)]">
             {t.title}
@@ -100,7 +88,6 @@ const TeamPage = ({ user, lang = 'ar' }) => {
           <p className="text-cyan-200/70 text-sm md:text-base">{t.subtitle}</p>
         </div>
 
-        {/* Invitation Code Section */}
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/30 rounded-3xl p-6 shadow-[0_0_25px_rgba(0,243,255,0.15)] flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#00f3ff]/10 border border-[#00f3ff]/40 flex items-center justify-center text-[#00f3ff]">
@@ -121,7 +108,6 @@ const TeamPage = ({ user, lang = 'ar' }) => {
           </button>
         </div>
 
-        {/* Summary Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
             <div>
@@ -140,7 +126,6 @@ const TeamPage = ({ user, lang = 'ar' }) => {
           </div>
         </div>
 
-        {/* Class Filter Tabs (A Priority) */}
         <div className="flex gap-2 p-1.5 bg-[#00f3ff]/[0.03] border border-[#00f3ff]/20 rounded-2xl backdrop-blur-md">
           {[
             { key: 'A', name: t.classA, count: teamData.A.length, priority: true },
@@ -164,7 +149,6 @@ const TeamPage = ({ user, lang = 'ar' }) => {
           ))}
         </div>
 
-        {/* Class A Priority Banner */}
         {activeTab === 'A' && (
           <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 flex items-center gap-3 text-cyan-300 text-sm">
             <Crown className="w-5 h-5 text-yellow-400 drop-shadow-[0_0_8px_#fde047]" />
@@ -172,7 +156,6 @@ const TeamPage = ({ user, lang = 'ar' }) => {
           </div>
         )}
 
-        {/* Members Cards / List */}
         <div className="space-y-4">
           {teamData[activeTab].length === 0 ? (
             <div className="text-center py-12 bg-[#00f3ff]/[0.02] border border-white/5 rounded-3xl">
@@ -185,7 +168,6 @@ const TeamPage = ({ user, lang = 'ar' }) => {
                 key={member.id}
                 className="bg-[#00f3ff]/[0.04] backdrop-blur-xl border border-[#00f3ff]/20 hover:border-[#00f3ff] rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_15px_rgba(0,243,255,0.05)] hover:shadow-[0_0_25px_rgba(0,243,255,0.2)]"
               >
-                {/* Member Details */}
                 <div className="flex items-center gap-4 w-full md:w-auto">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
                     <Phone className="w-5 h-5" />
@@ -196,7 +178,6 @@ const TeamPage = ({ user, lang = 'ar' }) => {
                   </div>
                 </div>
 
-                {/* Contract & VIP */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full md:w-auto text-center md:text-right">
                   <div>
                     <p className="text-xs text-gray-400">{t.vipLevel}</p>
