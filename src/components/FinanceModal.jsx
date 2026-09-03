@@ -8,7 +8,8 @@ import {
   ShieldCheck, 
   AlertCircle, 
   QrCode,
-  DollarSign
+  DollarSign,
+  Hash
 } from 'lucide-react';
 
 const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
@@ -16,13 +17,13 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
   const [network, setNetwork] = useState('TRC20');
   const [amount, setAmount] = useState('');
   const [address, setAddress] = useState('');
+  const [txHash, setTxHash] = useState(''); // ✅ حقل رقم المعاملة للإيداع
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
   if (!isOpen) return null;
 
-  // مبالغ السحب المحددة
   const withdrawAmounts = [14, 25, 50, 100, 200, 500, 1000];
 
   const depositAddresses = {
@@ -31,8 +32,8 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
   };
 
   const networkFees = {
-    TRC20: 0.05, // 5%
-    BEP20: 0.03  // 3%
+    TRC20: 0.05,
+    BEP20: 0.03
   };
 
   const handleCopy = (text) => {
@@ -49,6 +50,12 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
     e.preventDefault();
     if (!amount || parsedAmount <= 0) return;
     
+    // ✅ التحقق من رقم المعاملة في حالة الإيداع
+    if (activeTab === 'deposit' && !txHash.trim()) {
+      alert('⚠️ يرجى إدخال رقم المعاملة (TxID) لتأكيد الإيداع.');
+      return;
+    }
+
     if (activeTab === 'withdraw' && parsedAmount > balance) {
       alert('الرصيد المتاح غير كافٍ');
       return;
@@ -60,25 +67,28 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
       setIsSubmitting(false);
       setSuccessMsg(
         activeTab === 'deposit' 
-          ? 'تم إرسال طلب تأكيد الإيداع بنجاح، سيتم تحديث رصيدك فور تأكيد البلوكشين.' 
-          : 'تم إرسال طلب السحب بنجاح إلى المعالجة.'
+          ? `✅ تم إرسال طلب تأكيد الإيداع (TxID: ${txHash})، سيتم تحديث رصيدك بعد التحقق.`
+          : '✅ تم إرسال طلب السحب بنجاح إلى المعالجة.'
       );
+      // إعادة تعيين الحقول
+      setTxHash('');
+      setAmount('');
+      setAddress('');
       setTimeout(() => {
         setSuccessMsg('');
         onClose();
-      }, 3000);
+      }, 4000);
     }, 1500);
   };
 
-  // دالة اختيار مبلغ السحب
   const handleWithdrawAmountSelect = (value) => {
     setAmount(value.toString());
   };
 
   return (
-    <div className="fixed inset-[#000000]/80 inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
       
-      <div className="relative w-full max-w-lg bg-[#030914]/80 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl text-white space-y-6 animate-in fade-in zoom-in duration-200">
+      <div className="relative w-full max-w-lg bg-[#030914]/90 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl text-white space-y-6 animate-in fade-in zoom-in duration-200">
         
         <button 
           onClick={onClose}
@@ -94,7 +104,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
           
           <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 border border-white/10 rounded-2xl">
             <button
-              onClick={() => { setActiveTab('deposit'); setSuccessMsg(''); setAmount(''); }}
+              onClick={() => { setActiveTab('deposit'); setSuccessMsg(''); setAmount(''); setTxHash(''); }}
               className={`py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                 activeTab === 'deposit' 
                   ? 'bg-[#00f3ff] text-slate-950 shadow-[0_0_15px_rgba(0,243,255,0.4)]' 
@@ -105,7 +115,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
               إيداع
             </button>
             <button
-              onClick={() => { setActiveTab('withdraw'); setSuccessMsg(''); setAmount(''); }}
+              onClick={() => { setActiveTab('withdraw'); setSuccessMsg(''); setAmount(''); setAddress(''); }}
               className={`py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                 activeTab === 'withdraw' 
                   ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' 
@@ -132,7 +142,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
               <button
                 key={net}
                 type="button"
-                onClick={() => { setNetwork(net); setAmount(''); }}
+                onClick={() => { setNetwork(net); setAmount(''); setTxHash(''); }}
                 className={`p-3 rounded-2xl border text-right transition-all flex flex-col justify-between ${
                   network === net 
                     ? 'border-[#00f3ff] bg-[#00f3ff]/10 shadow-[0_0_12px_rgba(0,243,255,0.2)]' 
@@ -189,6 +199,23 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
                 </div>
               </div>
 
+              {/* ✅ حقل رقم المعاملة (TxID) للإيداع */}
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-gray-300 flex items-center gap-1">
+                  <Hash className="w-4 h-4 text-cyan-400" />
+                  رقم المعاملة (TxID / Transaction Hash):
+                </label>
+                <input 
+                  type="text"
+                  placeholder="أدخل رقم المعاملة من محفظتك..."
+                  value={txHash}
+                  onChange={(e) => setTxHash(e.target.value)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs"
+                />
+                <p className="text-[10px] text-gray-400">يمكنك نسخه من محفظتك بعد إرسال التحويل.</p>
+              </div>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -219,7 +246,6 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
               />
             </div>
 
-            {/* ✅ مبالغ السحب المحددة - أزرار بدلاً من حقل إدخال */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-gray-300">اختر مبلغ السحب ($ USDT):</label>
               <div className="grid grid-cols-3 gap-2">
@@ -240,7 +266,6 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
               </div>
             </div>
 
-            {/* عرض المبلغ المختار */}
             {amount && (
               <div className="p-2 rounded-xl bg-orange-500/5 border border-orange-500/20 text-center text-sm">
                 <span className="text-gray-400">المبلغ المختار: </span>
@@ -248,7 +273,6 @@ const FinanceModal = ({ isOpen, onClose, balance = 215.50 }) => {
               </div>
             )}
 
-            {/* تفاصيل الرسوم والمبلغ الصافي */}
             <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2 text-xs font-mono">
               <div className="flex justify-between text-gray-400">
                 <span>رسوم الشبكة ({(networkFees[network] * 100).toFixed(0)}%):</span>
