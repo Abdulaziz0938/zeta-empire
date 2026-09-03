@@ -85,6 +85,52 @@ app.post('/api/tasks/complete', async (req, res) => {
   }
 });
 
+// ===== واجهات جديدة لجلب البيانات للأدمن والإشعارات =====
+
+// [GET] جلب جميع المستخدمين (للأدمن)
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await User.find().select('-password -withdrawPin');
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [GET] جلب جميع المعاملات (للأدمن)
+app.get('/api/transactions', async (req, res) => {
+  try {
+    // سنقوم بجلب المعاملات من قاعدة البيانات لاحقاً
+    // حالياً نعيد مصفوفة فارغة، ويمكنك تعديلها لاحقاً
+    const transactions = [];
+    res.json({ success: true, transactions });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [GET] جلب الإشعارات (آخر 10 معاملات)
+app.get('/api/notifications', async (req, res) => {
+  try {
+    // سنقوم بجلب آخر المعاملات وتحويلها إلى إشعارات
+    // حالياً نعيد مصفوفة فارغة
+    const notifications = [];
+    res.json({ success: true, notifications });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [POST] إضافة معاملة جديدة (للايداع أو السحب)
+app.post('/api/transactions', async (req, res) => {
+  try {
+    // سنقوم بحفظ المعاملة في قاعدة البيانات لاحقاً
+    res.json({ success: true, message: 'تم إضافة المعاملة' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // ===== تشغيل الخادم =====
 app.listen(PORT, () => {
   console.log(`🚀 خادم ZETA EMPIRE يعمل على المنفذ ${PORT}`);

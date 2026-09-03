@@ -4,10 +4,7 @@ import {
   BellRing, 
   ArrowDownLeft, 
   ArrowUpRight, 
-  X, 
-  Sparkles,
-  CheckCircle,
-  Clock
+  X
 } from 'lucide-react';
 
 const LiveToastSystem = () => {
@@ -16,34 +13,67 @@ const LiveToastSystem = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [hasNew, setHasNew] = useState(false);
 
-  const names = ['أحمد م.', 'سارة خ.', 'خالد ع.', 'عمر ف.', 'فاطمة م.', 'علي ح.', 'ياسمين ن.', 'محمد ط.'];
+  // ✅ قائمة أسماء كبيرة (أكثر من 50 اسماً)
+  const names = [
+    'أحمد محمود', 'سارة خالد', 'محمد علي', 'فاطمة الزهراء', 'عمر الفاروق',
+    'ليلى أحمد', 'يوسف حسن', 'نورة سعيد', 'خالد عبدالله', 'منى إبراهيم',
+    'عبدالرحمن صالح', 'هند محمد', 'سيف الدين', 'ريما خالد', 'حسن علي',
+    'زينب أحمد', 'علي حسين', 'نادين سمير', 'طارق محمود', 'هبة الله',
+    'جمال عبدالناصر', 'سمية عادل', 'رامي إسماعيل', 'نهى كريم', 'سامي رشيد',
+    'أروى جمال', 'عماد شوقي', 'مريم فوزي', 'ياسر نبيل', 'غادة فريد',
+    'معاذ ياسر', 'داليا أسامة', 'رائد مروان', 'شيماء طارق', 'ناصر خالد',
+    'أمل رضا', 'باسم ماهر', 'عبير سامي', 'إيهاب شريف', 'نهلة أحمد',
+    'رفيق يوسف', 'تهاني سليمان', 'أكرم حسين', 'ليليان سمير', 'صلاح الدين',
+    'هدى جمال', 'أيمن نصار', 'سحر محمد', 'جيهان رشدي', 'ماجد فؤاد',
+    'أماني عاطف', 'رشا عمر', 'حمدي صبري', 'آية ناصر', 'عصام رضا'
+  ];
+
   const networks = ['TRC20', 'BEP20'];
   const types = ['deposit', 'withdraw'];
-
-  // ✅ مبالغ الإيداع المنطقية
   const depositAmounts = [50, 100, 200, 500, 1000, 1500, 3000];
-  
-  // ✅ مبالغ السحب المحددة (كما في نظامك)
   const withdrawAmounts = [14, 25, 50, 100, 200, 500, 1000];
 
+  // ===== جلب الإشعارات الحقيقية من الخادم =====
+  const fetchRealNotifications = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/notifications`);
+      const data = await res.json();
+      if (data.success && data.notifications?.length > 0) {
+        const newToasts = data.notifications.map(n => ({
+          id: n.id || Date.now() + Math.random() * 1000,
+          name: n.userName,
+          type: n.type,
+          amount: n.amount,
+          network: n.network || 'TRC20',
+          time: new Date(n.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+          message: n.type === 'deposit' 
+            ? `تم إيداع مبلغ $${n.amount} بنجاح` 
+            : `تم سحب مبلغ $${n.amount} بنجاح`
+        }));
+        setAllToasts(prev => [...newToasts, ...prev].slice(0, 50));
+        setActiveToasts(prev => [...newToasts, ...prev].slice(0, 3));
+        setHasNew(true);
+        setTimeout(() => setHasNew(false), 3000);
+      }
+    } catch (error) {
+      // لا يوجد إشعارات حقيقية، نستخدم المحاكاة
+    }
+  };
+
+  // ===== توليد إشعارات وهمية =====
   const generateRandomToast = () => {
     const randomName = names[Math.floor(Math.random() * names.length)];
     const randomType = types[Math.floor(Math.random() * types.length)];
     const randomNetwork = networks[Math.floor(Math.random() * networks.length)];
-    
-    // ✅ اختيار مبلغ مناسب حسب نوع العملية
-    let randomAmount;
-    if (randomType === 'deposit') {
-      randomAmount = depositAmounts[Math.floor(Math.random() * depositAmounts.length)];
-    } else {
-      randomAmount = withdrawAmounts[Math.floor(Math.random() * withdrawAmounts.length)];
-    }
+    const randomAmount = randomType === 'deposit' 
+      ? depositAmounts[Math.floor(Math.random() * depositAmounts.length)]
+      : withdrawAmounts[Math.floor(Math.random() * withdrawAmounts.length)];
 
     const newToast = {
       id: Date.now() + Math.random() * 1000,
       name: randomName,
       type: randomType,
-      amount: randomAmount.toFixed(2),
+      amount: randomAmount,
       network: randomNetwork,
       time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
       message: randomType === 'deposit' 
@@ -61,11 +91,13 @@ const LiveToastSystem = () => {
     }, 5000);
   };
 
+  // ===== تشغيل التحديثات =====
   useEffect(() => {
+    fetchRealNotifications();
     const interval = setInterval(() => {
-      generateRandomToast();
-    }, Math.floor(Math.random() * 4000) + 5000);
-
+      fetchRealNotifications();
+      setTimeout(generateRandomToast, 3000);
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
