@@ -3,8 +3,50 @@ import { Play, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, Lock, Rota
 
 const WorkPage = ({ user, lang = 'ar' }) => {
   const t = {
-    ar: { title: "مركز المهام اليومية", subtitle: "أكمل المهام الخمس لتحصيل أرباح عقود VIP", vipLevel: "مستوى VIP الحالي", dailyCommission: "نسبة العمولة اليومية", completedTasks: "المهام المكتملة", resetTime: "تجديد المهام خلال", startTask: "تنفيذ المهمة", processing: "جاري المعالجة...", allDone: "أحسنت! أكملت جميع المهام.", earned: "الربح الصافي المستلم", taskPrice: "قيمة العقد", commissionEarned: "ربح المهمة", contractAmount: "مبلغ العقد المحجوز (98%)", contractRenewed: "✅ تم تجديد العقد!", profitAdded: "أرباح اليوم مضافة للرصيد القابل للسحب", contractLocked: "مبلغ العقد محجوز للمهام القادمة", noContract: "💰 لا توجد عقود مفعلة", depositFirst: "قم بإيداع لتفعيل العقود.", backToDeposit: "العودة للإيداع" },
-    en: { title: "Daily Task Center", subtitle: "Complete 5 tasks to unlock your VIP contract yield", vipLevel: "Current VIP Level", dailyCommission: "Daily Yield Rate", completedTasks: "Tasks Completed", resetTime: "Tasks Reset In", startTask: "Start Task", processing: "Processing...", allDone: "Great job! All tasks completed.", earned: "Net Commission Earned", taskPrice: "Contract Value", commissionEarned: "Task Profit", contractAmount: "Locked Contract Amount (98%)", contractRenewed: "✅ Contract Renewed!", profitAdded: "Today's profit added to balance", contractLocked: "Contract locked for upcoming tasks", noContract: "💰 No Active Contract", depositFirst: "Deposit to activate.", backToDeposit: "Back to Deposit" }
+    ar: {
+      title: "مركز المهام اليومية",
+      subtitle: "أكمل المهام الخمس لتحصيل أرباح عقود VIP",
+      vipLevel: "مستوى VIP الحالي",
+      dailyCommission: "نسبة العمولة اليومية",
+      completedTasks: "المهام المكتملة",
+      resetTime: "تجديد المهام خلال",
+      startTask: "تنفيذ المهمة",
+      processing: "جاري المعالجة...",
+      allDone: "أحسنت! أكملت جميع المهام.",
+      earned: "الربح الصافي المستلم",
+      taskPrice: "قيمة العقد",
+      commissionEarned: "ربح المهمة",
+      contractAmount: "مبلغ العقد المحجوز (98%)",
+      contractRenewed: "✅ تم تجديد العقد!",
+      profitAdded: "أرباح اليوم مضافة للرصيد القابل للسحب",
+      contractLocked: "مبلغ العقد محجوز للمهام القادمة",
+      noContract: "💰 لا توجد عقود مفعلة",
+      depositFirst: "قم بإيداع لتفعيل العقود.",
+      backToDeposit: "العودة للإيداع",
+      buyVipFirst: "قم بشراء عقد VIP من صفحة مستويات VIP"
+    },
+    en: {
+      title: "Daily Task Center",
+      subtitle: "Complete 5 tasks to unlock your VIP contract yield",
+      vipLevel: "Current VIP Level",
+      dailyCommission: "Daily Yield Rate",
+      completedTasks: "Tasks Completed",
+      resetTime: "Tasks Reset In",
+      startTask: "Start Task",
+      processing: "Processing...",
+      allDone: "Great job! All tasks completed.",
+      earned: "Net Commission Earned",
+      taskPrice: "Contract Value",
+      commissionEarned: "Task Profit",
+      contractAmount: "Locked Contract Amount (98%)",
+      contractRenewed: "✅ Contract Renewed!",
+      profitAdded: "Today's profit added to balance",
+      contractLocked: "Contract locked for upcoming tasks",
+      noContract: "💰 No Active Contract",
+      depositFirst: "Deposit to activate.",
+      backToDeposit: "Back to Deposit",
+      buyVipFirst: "Buy a VIP contract from VIP Levels page"
+    }
   }[lang];
 
   const [completedCount, setCompletedCount] = useState(user?.tasksCompletedToday || 0);
@@ -41,50 +83,39 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     return () => clearInterval(interval);
   }, []);
 
-
-
-const handleExecuteTask = async (index) => {
-  if (isProcessing || index !== completedCount) return;
-  setIsProcessing(true);
-  setActiveTaskIndex(index);
-  
-  // محاكاة تنفيذ المهمة (تأخير 2 ثانية)
-  setTimeout(async () => {
-    const newCompletedCount = completedCount + 1;
-    setCompletedCount(newCompletedCount);
-    setIsProcessing(false);
-    setActiveTaskIndex(null);
-
-    if (newCompletedCount === 5) {
-      // ✅ إرسال طلب إلى الخادم لتوزيع الأرباح
-      setIsProcessing(true);
-      try {
-        const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
-        const res = await fetch(`${API_BASE}/api/tasks/complete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user._id || user.id })
-        });
-        const data = await res.json();
-        if (data.success) {
-          console.log('✅ تم توزيع الأرباح:', data);
-          setShowRenewMessage(true);
-          // تحديث بيانات المستخدم (يمكن جلبها من الخادم)
-        } else {
-          console.error('❌ فشل توزيع الأرباح:', data.message);
-          alert('❌ حدث خطأ أثناء توزيع الأرباح، يرجى المحاولة مرة أخرى.');
+  const handleExecuteTask = async (index) => {
+    if (isProcessing || index !== completedCount) return;
+    setIsProcessing(true); setActiveTaskIndex(index);
+    setTimeout(async () => {
+      const newCompletedCount = completedCount + 1;
+      setCompletedCount(newCompletedCount);
+      setIsProcessing(false); setActiveTaskIndex(null);
+      if (newCompletedCount === 5) {
+        setIsProcessing(true);
+        try {
+          const res = await fetch(`${API_BASE}/api/tasks/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user._id || user.id })
+          });
+          const data = await res.json();
+          if (data.success) {
+            console.log('✅ تم توزيع الأرباح:', data);
+            setShowRenewMessage(true);
+          } else {
+            console.error('❌ فشل توزيع الأرباح:', data.message);
+            alert('❌ ' + data.message);
+          }
+        } catch (error) {
+          console.error('❌ خطأ في الاتصال بالخادم:', error);
+          alert('❌ تعذر الاتصال بالخادم، تأكد من اتصالك بالإنترنت.');
+        } finally {
+          setIsProcessing(false);
+          setTimeout(() => setShowRenewMessage(false), 6000);
         }
-      } catch (error) {
-        console.error('❌ خطأ في الاتصال بالخادم:', error);
-        alert('❌ تعذر الاتصال بالخادم، تأكد من اتصالك بالإنترنت.');
-      } finally {
-        setIsProcessing(false);
-        setTimeout(() => setShowRenewMessage(false), 6000);
       }
-    }
-  }, 2000);
-};
-
+    }, 2000);
+  };
 
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -102,8 +133,20 @@ const handleExecuteTask = async (index) => {
 
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4"><div className="flex justify-between text-sm"><span className="text-cyan-200">{t.completedTasks}</span><span className="text-[#00f3ff] font-bold">{completedCount} / 5</span></div><div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-[#00f3ff]/20 p-0.5"><div className="h-full bg-gradient-to-r from-cyan-500 to-[#00f3ff] rounded-full transition-all duration-500" style={{ width: `${(completedCount/5)*100}%` }} /></div></div>
 
-        {userDeposit === 0 ? (
-          <div className="text-center py-12 bg-white/5 rounded-3xl"><DollarSign className="w-16 h-16 text-gray-600 mx-auto mb-4" /><p className="text-gray-400 font-bold">{t.noContract}</p><p className="text-gray-500 text-sm">{t.depositFirst}</p><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="mt-4 px-6 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold">{t.backToDeposit}</button></div>
+        {userDeposit === 0 || vipLevel === 0 ? (
+          <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
+            <DollarSign className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400 font-bold text-lg">💰 لا توجد عقود مفعلة</p>
+            <p className="text-gray-500 text-sm mt-2">
+              {vipLevel === 0 ? t.buyVipFirst : t.depositFirst}
+            </p>
+            <button 
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} 
+              className="mt-4 px-6 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all"
+            >
+              {vipLevel === 0 ? 'عرض مستويات VIP' : t.backToDeposit}
+            </button>
+          </div>
         ) : (
           <div className="space-y-4">
             {tasks.map((price, idx) => {

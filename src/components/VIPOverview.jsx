@@ -1,22 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  Crown, 
-  Zap, 
-  ArrowLeft, 
-  Award, 
-  Users, 
-  DollarSign, 
-  Lock, 
-  CheckCircle2, 
-  TrendingUp,
-  Calculator
-} from 'lucide-react';
+import { Crown, Zap, ArrowLeft, Award, Users, DollarSign, Lock, CheckCircle2, TrendingUp, Calculator } from 'lucide-react';
 
 const VIPOverview = ({ user, lang = 'ar', onBack }) => {
   const [depositInput, setDepositInput] = useState('');
   const [calculatedCommission, setCalculatedCommission] = useState(null);
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  // تعريف مستويات VIP
   const vipLevels = [
     { level: 1, commission: 4.0, minDeposit: 50, referralsRequired: 0, benefits: 'عمولة يومية 4%' },
     { level: 2, commission: 4.5, minDeposit: 100, referralsRequired: 0, benefits: 'عمولة يومية 4.5%' },
@@ -30,15 +19,14 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
   const userVip = user?.vipLevel || 0;
   const userDeposit = user?.totalDeposit || 0;
   const userReferrals = user?.referralEarnings ? Math.floor(user.referralEarnings / 5) : 0;
+  const userBalance = user?.balance || 0;
 
-  // حساب العمولة المتوقعة بناءً على الإيداع المدخل
   const handleCalculate = () => {
     const amount = parseFloat(depositInput);
     if (!amount || amount <= 0) {
       alert('الرجاء إدخال مبلغ صحيح.');
       return;
     }
-    // تحديد المستوى المناسب بناءً على المبلغ
     let selectedLevel = vipLevels[0];
     for (let i = vipLevels.length - 1; i >= 0; i--) {
       if (amount >= vipLevels[i].minDeposit) {
@@ -54,6 +42,31 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
       monthly: dailyProfit * 30,
       yearly: dailyProfit * 365
     });
+  };
+
+  const handlePurchaseVIP = async (targetLevel) => {
+    if (!user) {
+      alert('يرجى تسجيل الدخول أولاً');
+      return;
+    }
+    const confirmPurchase = confirm(`هل أنت متأكد من شراء VIP ${targetLevel}؟`);
+    if (!confirmPurchase) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/vip/purchase`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user._id || user.id, vipLevel: targetLevel })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`✅ ${data.message}`);
+        window.location.reload();
+      } else {
+        alert(`❌ ${data.message}`);
+      }
+    } catch (error) {
+      alert('❌ تعذر الاتصال بالخادم');
+    }
   };
 
   const t = {
@@ -79,7 +92,8 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
       dailyProfit: 'الربح اليومي',
       monthlyProfit: 'الربح الشهري',
       yearlyProfit: 'الربح السنوي',
-      backBtn: 'العودة للرئيسية'
+      backBtn: 'العودة للرئيسية',
+      buyVip: '💰 شراء VIP'
     },
     en: {
       title: '📊 VIP Levels & Upgrades',
@@ -103,21 +117,17 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
       dailyProfit: 'Daily Profit',
       monthlyProfit: 'Monthly Profit',
       yearlyProfit: 'Yearly Profit',
-      backBtn: 'Back to Home'
+      backBtn: 'Back to Home',
+      buyVip: '💰 Buy VIP'
     }
   }[lang];
 
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-6xl mx-auto space-y-8">
-        
-        {/* رأس الصفحة */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={onBack}
-              className="p-2 rounded-2xl bg-white/5 border border-white/10 hover:border-[#00f3ff] text-gray-400 hover:text-white transition-all"
-            >
+            <button onClick={onBack} className="p-2 rounded-2xl bg-white/5 border border-white/10 hover:border-[#00f3ff] text-gray-400 hover:text-white transition-all">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <div>
@@ -134,42 +144,25 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           </div>
         </div>
 
-        {/* شبكة بطاقات VIP */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {vipLevels.map((vip) => {
             const isActive = vip.level === userVip;
             const isUnlocked = vip.level <= userVip;
-            
             return (
-              <div 
-                key={vip.level}
-                className={`p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300 ${
-                  isActive 
-                    ? 'bg-[#00f3ff]/10 border-[#00f3ff] shadow-[0_0_30px_rgba(0,243,255,0.25)] scale-[1.02]' 
-                    : isUnlocked 
-                    ? 'bg-green-500/5 border-green-500/30' 
-                    : 'bg-white/[0.02] border-white/10 opacity-60'
-                }`}
-              >
-                {/* رأس البطاقة */}
+              <div key={vip.level} className={`p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300 ${isActive ? 'bg-[#00f3ff]/10 border-[#00f3ff] shadow-[0_0_30px_rgba(0,243,255,0.25)] scale-[1.02]' : isUnlocked ? 'bg-green-500/5 border-green-500/30' : 'bg-white/[0.02] border-white/10 opacity-60'}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <Crown className={`w-6 h-6 ${isActive ? 'text-yellow-400' : isUnlocked ? 'text-green-400' : 'text-gray-500'}`} />
                       <span className="text-2xl font-black text-white">VIP {vip.level}</span>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full border mt-1 inline-block ${
-                      isActive ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-300' :
-                      isUnlocked ? 'bg-green-500/20 border-green-500/30 text-green-400' :
-                      'bg-gray-500/20 border-gray-500/30 text-gray-400'
-                    }`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border mt-1 inline-block ${isActive ? 'bg-cyan-500/20 border-cyan-500/30 text-cyan-300' : isUnlocked ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-gray-500/20 border-gray-500/30 text-gray-400'}`}>
                       {isActive ? t.active : isUnlocked ? t.unlocked : t.locked}
                     </span>
                   </div>
                   <span className="text-3xl font-black text-cyan-400">{vip.commission}%</span>
                 </div>
 
-                {/* التفاصيل */}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between border-b border-white/5 pb-2">
                     <span className="text-gray-400">{t.minDeposit}</span>
@@ -185,37 +178,18 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
                   </div>
                 </div>
 
-                {/* زر الإجراء */}
-                {isActive && vip.level < 7 && (
-                  <button 
-                    disabled
-                    className="w-full mt-4 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 font-bold text-xs cursor-not-allowed border border-cyan-500/30"
+                {!isActive && vip.level <= 7 && (
+                  <button
+                    onClick={() => handlePurchaseVIP(vip.level)}
+                    className={`w-full mt-4 py-2 rounded-xl text-xs font-bold transition-all ${userBalance >= vip.minDeposit ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:shadow-[0_0_25px_rgba(250,204,21,0.6)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}`}
+                    disabled={userBalance < vip.minDeposit}
                   >
-                    {t.active}
+                    {userBalance >= vip.minDeposit ? `${t.buyVip} ${vip.level} بـ $${vip.minDeposit}` : `🔒 يحتاج $${vip.minDeposit} (رصيدك $${userBalance})`}
                   </button>
                 )}
-                {isUnlocked && !isActive && vip.level < 7 && (
-                  <button 
-                    disabled
-                    className="w-full mt-4 py-2 rounded-xl bg-white/5 text-gray-400 font-bold text-xs cursor-not-allowed border border-white/10"
-                  >
-                    {t.upgrade}
-                  </button>
-                )}
-                {!isUnlocked && vip.level === userVip + 1 && (
-                  <button 
-                    disabled
-                    className="w-full mt-4 py-2 rounded-xl bg-yellow-500/10 text-yellow-400 font-bold text-xs border border-yellow-500/30 cursor-not-allowed"
-                  >
-                    🔄 يتطلب ${vip.minDeposit - userDeposit} إضافية و {vip.referralsRequired - userReferrals} إحالة
-                  </button>
-                )}
-                {!isUnlocked && vip.level > userVip + 1 && (
-                  <button 
-                    disabled
-                    className="w-full mt-4 py-2 rounded-xl bg-white/5 text-gray-500 font-bold text-xs border border-white/10 cursor-not-allowed"
-                  >
-                    {t.notAvailable}
+                {isActive && (
+                  <button disabled className="w-full mt-4 py-2 rounded-xl bg-green-500/20 text-green-400 font-bold text-xs cursor-not-allowed border border-green-500/30">
+                    ✅ نشط (VIP {vip.level})
                   </button>
                 )}
               </div>
@@ -223,59 +197,32 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           })}
         </div>
 
-        {/* حاسبة العائد اليومي */}
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-2xl border border-[#00f3ff]/20 rounded-3xl p-6 shadow-[0_0_25px_rgba(0,243,255,0.1)]">
           <div className="flex items-center gap-3 mb-4">
             <Calculator className="w-6 h-6 text-cyan-400" />
             <h3 className="text-xl font-bold text-white">{t.calculateTitle}</h3>
           </div>
           <p className="text-sm text-gray-400 mb-4">{t.calculateDesc}</p>
-          
           <div className="flex flex-col md:flex-row gap-4">
-            <input 
-              type="number" 
-              value={depositInput}
-              onChange={(e) => setDepositInput(e.target.value)}
-              placeholder={t.amountPlaceholder}
-              className="flex-1 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff] transition-all"
-            />
-            <button 
-              onClick={handleCalculate}
-              className="px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all whitespace-nowrap"
-            >
+            <input type="number" value={depositInput} onChange={(e) => setDepositInput(e.target.value)} placeholder={t.amountPlaceholder} className="flex-1 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff] transition-all" />
+            <button onClick={handleCalculate} className="px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all whitespace-nowrap">
               {t.calculateBtn}
             </button>
           </div>
-
           {calculatedCommission && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
-              <div className="text-center">
-                <p className="text-xs text-gray-400">{t.dailyProfit}</p>
-                <p className="text-2xl font-black text-green-400">${calculatedCommission.daily.toFixed(2)}</p>
-                <p className="text-[10px] text-gray-500">VIP {calculatedCommission.level}</p>
-              </div>
-              <div className="text-center border-x border-white/10 px-4">
-                <p className="text-xs text-gray-400">{t.monthlyProfit}</p>
-                <p className="text-2xl font-black text-cyan-400">${calculatedCommission.monthly.toFixed(2)}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-gray-400">{t.yearlyProfit}</p>
-                <p className="text-2xl font-black text-yellow-400">${calculatedCommission.yearly.toFixed(2)}</p>
-              </div>
+              <div className="text-center"><p className="text-xs text-gray-400">{t.dailyProfit}</p><p className="text-2xl font-black text-green-400">${calculatedCommission.daily.toFixed(2)}</p><p className="text-[10px] text-gray-500">VIP {calculatedCommission.level}</p></div>
+              <div className="text-center border-x border-white/10 px-4"><p className="text-xs text-gray-400">{t.monthlyProfit}</p><p className="text-2xl font-black text-cyan-400">${calculatedCommission.monthly.toFixed(2)}</p></div>
+              <div className="text-center"><p className="text-xs text-gray-400">{t.yearlyProfit}</p><p className="text-2xl font-black text-yellow-400">${calculatedCommission.yearly.toFixed(2)}</p></div>
             </div>
           )}
         </div>
 
-        {/* زر الرجوع */}
         <div className="text-center">
-          <button 
-            onClick={onBack}
-            className="px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#00f3ff] transition-all font-bold text-sm"
-          >
+          <button onClick={onBack} className="px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#00f3ff] transition-all font-bold text-sm">
             {t.backBtn}
           </button>
         </div>
-
       </div>
     </div>
   );
