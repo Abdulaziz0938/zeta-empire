@@ -57,22 +57,38 @@ const WorkPage = ({ user, lang = 'ar' }) => {
   const [showRenewMessage, setShowRenewMessage] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  const vipLevels = [{level:0,commission:0},{level:1,commission:4.0},{level:2,commission:4.5},{level:3,commission:5.0},{level:4,commission:5.5},{level:5,commission:6.0},{level:6,commission:6.5},{level:7,commission:7.0}];
-  const userDeposit = user?.totalDeposit || 0;
-  const vipLevel = user?.vipLevel || 0;
-  const currentRate = vipLevels.find(v => v.level === vipLevel)?.commission || 0;
-  const totalProfit = userDeposit * (currentRate / 100);
-  const contractAmount = userDeposit * 0.98;
+  // ✅ تعريف مستويات VIP مع مبلغ العقد المحدد لكل مستوى
+  const vipLevels = [
+    { level: 0, commission: 0, contractAmount: 0 },
+    { level: 1, commission: 4.0, contractAmount: 50 },
+    { level: 2, commission: 4.5, contractAmount: 100 },
+    { level: 3, commission: 5.0, contractAmount: 200 },
+    { level: 4, commission: 5.5, contractAmount: 400 },
+    { level: 5, commission: 6.0, contractAmount: 800 },
+    { level: 6, commission: 6.5, contractAmount: 1600 },
+    { level: 7, commission: 7.0, contractAmount: 3200 }
+  ];
 
+  const vipLevel = user?.vipLevel || 0;
+  const currentVipData = vipLevels.find(v => v.level === vipLevel) || vipLevels[0];
+  const currentRate = currentVipData.commission;
+  const contractAmount = currentVipData.contractAmount;
+  const totalProfit = contractAmount * (currentRate / 100);
+
+  // ✅ حساب مبلغ العقد المحجوز (98% من مبلغ العقد)
+  const lockedAmount = contractAmount * 0.98;
+
+  // ===== حساب تقسيم المهام =====
   useEffect(() => {
-    if (userDeposit === 0) { setTasks([]); return; }
-    const capital = userDeposit * 0.98;
+    if (contractAmount === 0) { setTasks([]); return; }
+    const capital = contractAmount * 0.98;
     let remaining = capital, generated = [];
     for (let i = 0; i < 4; i++) { let val = parseFloat((Math.random() * (remaining / (5 - i))).toFixed(2)); generated.push(val); remaining -= val; }
     generated.push(parseFloat(remaining.toFixed(2)));
     setTasks(generated);
-  }, [userDeposit]);
+  }, [contractAmount]);
 
+  // ===== عداد تجديد المهام =====
   useEffect(() => {
     const updateTimer = () => {
       const now = new Date(); const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1); tomorrow.setHours(0,0,0,0);
@@ -83,6 +99,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // ===== تنفيذ المهمة =====
   const handleExecuteTask = async (index) => {
     if (isProcessing || index !== completedCount) return;
     setIsProcessing(true); setActiveTaskIndex(index);
@@ -121,7 +138,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-5xl mx-auto space-y-8">
         <div className="text-center"><h1 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-white via-cyan-300 to-cyan-500 bg-clip-text text-transparent">{t.title}</h1><p className="text-cyan-200/70">{t.subtitle}</p></div>
-        {showRenewMessage && <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center"><RotateCcw className="w-12 h-12 text-green-400 mx-auto" /><h3 className="text-xl font-bold text-white">{t.contractRenewed}</h3><p className="text-cyan-200">{t.profitAdded}: <span className="text-green-400 font-extrabold">${totalProfit.toFixed(2)}</span></p><p className="text-xs text-gray-400">{t.contractLocked} (${contractAmount.toFixed(2)})</p></div>}
+        {showRenewMessage && <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center"><RotateCcw className="w-12 h-12 text-green-400 mx-auto" /><h3 className="text-xl font-bold text-white">{t.contractRenewed}</h3><p className="text-cyan-200">{t.profitAdded}: <span className="text-green-400 font-extrabold">${totalProfit.toFixed(2)}</span></p><p className="text-xs text-gray-400">{t.contractLocked} (${lockedAmount.toFixed(2)})</p></div>}
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/30 rounded-3xl p-6 flex justify-between"><div><p className="text-xs text-cyan-300/70">{t.vipLevel}</p><h3 className="text-2xl font-bold text-cyan-400">VIP {vipLevel}</h3></div><Zap className="w-10 h-10 text-[#00f3ff]" /></div>
@@ -129,11 +146,11 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/30 rounded-3xl p-6 flex justify-between"><div><p className="text-xs text-cyan-300/70">{t.resetTime}</p><h3 className="text-xl font-mono font-bold text-yellow-300">{timeToReset}</h3></div><RefreshCw className="w-9 h-9 text-yellow-300 animate-spin-slow" /></div>
         </div>
 
-        {userDeposit > 0 && <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 flex justify-between"><span className="text-sm text-gray-400">{t.contractAmount}:</span><span className="text-lg font-bold text-cyan-300">${contractAmount.toFixed(2)}</span></div>}
+        {contractAmount > 0 && <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 flex justify-between"><span className="text-sm text-gray-400">{t.contractAmount}:</span><span className="text-lg font-bold text-cyan-300">${lockedAmount.toFixed(2)}</span></div>}
 
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4"><div className="flex justify-between text-sm"><span className="text-cyan-200">{t.completedTasks}</span><span className="text-[#00f3ff] font-bold">{completedCount} / 5</span></div><div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-[#00f3ff]/20 p-0.5"><div className="h-full bg-gradient-to-r from-cyan-500 to-[#00f3ff] rounded-full transition-all duration-500" style={{ width: `${(completedCount/5)*100}%` }} /></div></div>
 
-        {userDeposit === 0 || vipLevel === 0 ? (
+        {contractAmount === 0 || vipLevel === 0 ? (
           <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
             <DollarSign className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400 font-bold text-lg">💰 لا توجد عقود مفعلة</p>

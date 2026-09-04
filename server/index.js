@@ -1,4 +1,4 @@
-// server/index.js - ZETA EMPIRE Backend (نسخة كاملة)
+// server/index.js - ZETA EMPIRE Backend (نسخة كاملة مع تعديل شراء VIP)
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -303,7 +303,7 @@ app.get('/api/admin/audit', async (req, res) => {
   }
 });
 
-// ===== ✅ شراء VIP (يدوي) =====
+// ===== ✅ شراء VIP (يدوي) - السعر = سعر المستوى المطلوب فقط =====
 app.post('/api/vip/purchase', async (req, res) => {
   const { userId, vipLevel } = req.body;
   try {
@@ -314,8 +314,7 @@ app.post('/api/vip/purchase', async (req, res) => {
     if (!vipPrices[vipLevel]) return res.status(400).json({ success: false, message: 'مستوى VIP غير صحيح' });
     if (vipLevel <= user.vipLevel) return res.status(400).json({ success: false, message: 'أنت تمتلك هذا المستوى أو أعلى' });
 
-    let totalCost = 0;
-    for (let i = user.vipLevel + 1; i <= vipLevel; i++) totalCost += vipPrices[i];
+    const totalCost = vipPrices[vipLevel];
 
     if (user.balance < totalCost) {
       return res.status(400).json({ success: false, message: `الرصيد غير كافٍ. المطلوب: $${totalCost}` });

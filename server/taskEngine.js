@@ -31,20 +31,23 @@ async function completeTasksAndDistribute(userId) {
     const user = await User.findById(userId);
     if (!user) throw new Error('المستخدم غير موجود');
 
-    // تحديد نسبة العمولة حسب مستوى VIP
+    // ✅ تعريف مبالغ العقد والنسب حسب مستوى VIP
+    const vipContract = { 0: 0, 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };
     const vipRates = { 0: 0, 1: 4.0, 2: 4.5, 3: 5.0, 4: 5.5, 5: 6.0, 6: 6.5, 7: 7.0 };
+
     const rate = vipRates[user.vipLevel] || 0;
-    const profit = user.totalDeposit * (rate / 100);
+    const contractAmount = vipContract[user.vipLevel] || 0;
+    const profit = contractAmount * (rate / 100);
 
     if (profit <= 0) {
-      return { success: false, message: 'لا توجد أرباح لحسابها' };
+      return { success: false, message: 'لا توجد أرباح لحسابها (تأكد من أن لديك عقد VIP نشط).' };
     }
 
     // 1. إضافة الربح إلى رصيد المستخدم
     user.balance += profit;
     user.dailyEarnings += profit;
     user.totalEarnings += profit;
-    user.tasksCompletedToday = 0; // إعادة تعيين المهام لليوم التالي
+    user.tasksCompletedToday = 0;
     await user.save();
 
     // 2. تسجيل المعاملة (ربح)
