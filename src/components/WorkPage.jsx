@@ -99,40 +99,58 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // ===== تنفيذ المهمة =====
-  const handleExecuteTask = async (index) => {
-    if (isProcessing || index !== completedCount) return;
-    setIsProcessing(true); setActiveTaskIndex(index);
-    setTimeout(async () => {
-      const newCompletedCount = completedCount + 1;
-      setCompletedCount(newCompletedCount);
-      setIsProcessing(false); setActiveTaskIndex(null);
-      if (newCompletedCount === 5) {
-        setIsProcessing(true);
-        try {
-          const res = await fetch(`${API_BASE}/api/tasks/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user._id || user.id })
-          });
-          const data = await res.json();
-          if (data.success) {
-            console.log('✅ تم توزيع الأرباح:', data);
-            setShowRenewMessage(true);
-          } else {
-            console.error('❌ فشل توزيع الأرباح:', data.message);
-            alert('❌ ' + data.message);
-          }
-        } catch (error) {
-          console.error('❌ خطأ في الاتصال بالخادم:', error);
-          alert('❌ تعذر الاتصال بالخادم، تأكد من اتصالك بالإنترنت.');
-        } finally {
-          setIsProcessing(false);
-          setTimeout(() => setShowRenewMessage(false), 6000);
-        }
+
+
+
+const [isProcessing, setIsProcessing] = useState(false);
+const [taskLock, setTaskLock] = useState(false);
+
+const handleExecuteTask = async (index) => {
+  // ✅ منع الضغط المتكرر
+  if (isProcessing || taskLock || index !== completedCount) return;
+  
+  setIsProcessing(true);
+  setTaskLock(true);
+  setActiveTaskIndex(index);
+  
+  try {
+    // محاكاة تنفيذ المهمة
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const newCompletedCount = completedCount + 1;
+    setCompletedCount(newCompletedCount);
+    
+    if (newCompletedCount === 5) {
+      // إرسال طلب توزيع الأرباح
+      const res = await fetch(`${API_BASE}/api/tasks/complete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user._id || user.id })
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        console.log('✅ تم توزيع الأرباح:', data);
+        setShowRenewMessage(true);
+        setTimeout(() => setShowRenewMessage(false), 6000);
+      } else {
+        alert('❌ ' + data.message);
       }
-    }, 2000);
-  };
+    }
+  } catch (error) {
+    console.error('❌ خطأ:', error);
+    alert('❌ تعذر الاتصال بالخادم');
+  } finally {
+    setIsProcessing(false);
+    setTaskLock(false);
+    setActiveTaskIndex(null);
+  }
+};
+
+
+
+
+
 
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>

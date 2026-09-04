@@ -230,6 +230,125 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
   }
 });
 
+// ===== منع تكرار المعاملات (Idempotency) =====
+const processedTransactions = new Set(); // تخزين مؤقت للمعاملات التي تمت معالجتها
+
+// ✅ قبول طلب معاملة (مع منع التكرار)
+app.put('/api/admin/approve/:txId', async (req, res) => {
+  const txId = req.params.txId;
+  
+  // التحقق من أن المعاملة لم تُعالج مسبقاً
+  if (processedTransactions.has(txId)) {
+    return res.status(409).json({ 
+      success: false, 
+      message: 'هذه المعاملة تمت معالجتها مسبقاً' 
+    });
+  }
+  
+  try {
+    const tx = await Transaction.findById(txId);
+    if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
+    
+    // التحقق من أن المعاملة لا تزال معلقة
+    if (tx.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `المعاملة بحالة ${tx.status} ولا يمكن معالجتها` 
+      });
+    }
+    
+    const user = await User.findById(tx.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    
+    // معالجة المعاملة حسب النوع
+    if (tx.type === 'deposit') {
+      user.balance += tx.amount;
+      user.totalDeposit += tx.amount;
+    } else if (tx.type === 'withdraw') {
+      if (user.balance < tx.amount) {
+        return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' });
+      }
+      user.balance -= tx.amount;
+      user.totalWithdrawal += tx.amount;
+    }
+    
+    await user.save();
+    
+    // تحديث حالة المعاملة
+    tx.status = 'approved';
+    tx.adminAction = 'تم القبول بواسطة المدير';
+    await tx.save();
+    
+    // إضافة المعاملة إلى مجموعة المعالجة لمنع التكرار
+    processedTransactions.add(txId);
+    
+    // تنظيف المجموعة بعد 10 دقائق (لتفادي تراكم الذاكرة)
+    setTimeout(() => {
+      processedTransactions.delete(txId);
+    }, 10 * 60 * 1000);
+    
+    await saveAuditLog('المدير الفائق', `قبول طلب ${tx.type} #${txId}`, { 
+      userId: user._id, 
+      amount: tx.amount,
+      newBalance: user.balance 
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'تم قبول المعاملة بنجاح', 
+      transaction: tx, 
+      newBalance: user.balance 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ✅ رفض طلب معاملة (مع منع التكرار)
+app.put('/api/admin/reject/:txId', async (req, res) => {
+  const txId = req.params.txId;
+  
+  if (processedTransactions.has(txId)) {
+    return res.status(409).json({ 
+      success: false, 
+      message: 'هذه المعاملة تمت معالجتها مسبقاً' 
+    });
+  }
+  
+  try {
+    const tx = await Transaction.findById(txId);
+    if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
+    
+    if (tx.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `المعاملة بحالة ${tx.status} ولا يمكن معالجتها` 
+      });
+    }
+    
+    tx.status = 'rejected';
+    tx.adminAction = 'تم الرفض بواسطة المدير';
+    await tx.save();
+    
+    processedTransactions.add(txId);
+    setTimeout(() => processedTransactions.delete(txId), 10 * 60 * 1000);
+    
+    await saveAuditLog('المدير الفائق', `رفض طلب ${tx.type} #${txId}`, { 
+      userId: tx.userId, 
+      amount: tx.amount 
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'تم رفض المعاملة', 
+      transaction: tx 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
 // ===== قبول ورفض الطلبات =====
 app.put('/api/admin/approve/:txId', async (req, res) => {
   try {
