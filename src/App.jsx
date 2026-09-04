@@ -25,12 +25,17 @@ const App = () => {
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
   const [lang, setLang] = useState('ar');
 
-  // ✅ دالة تسجيل الدخول (حفظ الجلسة)
-  const handleAuthSuccess = (userData) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-    localStorage.setItem('zeta_user', JSON.stringify(userData));
-  };
+
+
+
+const handleAuthSuccess = (userData) => {
+  setUser(userData);
+  setIsLoggedIn(true);
+  localStorage.setItem('zeta_user', JSON.stringify(userData));
+  // التوكن يُحفظ بالفعل في AuthPortal
+};
+
+
 
   // ✅ دالة تسجيل الخروج
   const handleLogout = () => {

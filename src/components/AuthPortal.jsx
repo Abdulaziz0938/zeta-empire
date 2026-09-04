@@ -150,80 +150,90 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
 
   // ============================================================
   // ✅✅✅ القسم الجديد: الاتصال بقاعدة البيانات الحقيقية ✅✅✅
-  // ============================================================
+  // ===========================================================
+const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
 
-    setIsLoading(true);
-    setApiError('');
 
-    try {
-      const cleanPhone = formData.phone.replace(/\s/g, '').replace(/^\+/, '');
-      let endpoint, payload, response;
 
-      if (isLogin) {
-        // ✅ تسجيل الدخول الحقيقي
-        endpoint = `${API_BASE}/api/auth/login`;
-        payload = { phone: cleanPhone, password: formData.password };
-      } else {
-        // ✅ إنشاء حساب جديد حقيقي
-        endpoint = `${API_BASE}/api/auth/register`;
-        payload = {
-          fullName: formData.fullName,
-          phone: cleanPhone,
-          password: formData.password,
-          withdrawPin: formData.withdrawPin.join(''),
-          inviteCode: formData.referralCode || "ZETA" + Math.floor(1000 + Math.random() * 9000),
-          vipLevel: 0,
-          balance: 0,
-          totalDeposit: 0,
-          totalWithdrawal: 0,
-          totalEarnings: 0,
-          referralEarnings: 0,
-          dailyEarnings: 0,
-          weeklyEarnings: 0,
-          monthlyEarnings: 0,
-          isAdmin: false
-        };
-      }
 
-      response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
 
-      const data = await response.json();
 
-      if (data.success) {
-        // ✅ نجاح تسجيل الدخول / إنشاء الحساب
-        const userData = data.user;
-        // التحقق من حساب الأدمن الخاص
-        if (isLogin && cleanPhone === '999999999' && formData.password === 'admin0965') {
-          userData.isAdmin = true;
-          userData.fullName = "المدير الفائق";
-          userData.vipLevel = 7;
-          userData.balance = 9999.99;
-        }
-        alert(isLogin ? '✅ تم تسجيل الدخول بنجاح!' : '✅ تم إنشاء الحساب بنجاح!');
-        onAuthSuccess(userData);
-      } else {
-        // ❌ فشل من الخادم
-        setApiError(data.message || 'حدث خطأ، يرجى المحاولة مرة أخرى.');
-        alert('❌ ' + (data.message || 'حدث خطأ!'));
-      }
-    } catch (error) {
-      console.error('❌ خطأ في الاتصال بالخادم:', error);
-      setApiError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
-      alert('❌ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
-    } finally {
-      setIsLoading(false);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
+
+  setIsLoading(true);
+  setApiError('');
+
+  try {
+    const cleanPhone = formData.phone.replace(/\s/g, '').replace(/^\+/, '');
+    let endpoint, payload, response;
+
+    if (isLogin) {
+      endpoint = `${API_BASE}/api/auth/login`;
+      payload = { phone: cleanPhone, password: formData.password };
+    } else {
+      endpoint = `${API_BASE}/api/auth/register`;
+      payload = {
+        fullName: formData.fullName,
+        phone: cleanPhone,
+        password: formData.password,
+        withdrawPin: formData.withdrawPin.join(''),
+        inviteCode: formData.referralCode || "ZETA" + Math.floor(1000 + Math.random() * 9000),
+        referredBy: formData.referralCode || null,
+        vipLevel: 0,
+        balance: 0,
+        totalDeposit: 0,
+        totalWithdrawal: 0,
+        totalEarnings: 0,
+        referralEarnings: 0,
+        dailyEarnings: 0,
+        weeklyEarnings: 0,
+        monthlyEarnings: 0,
+        isAdmin: false,
+        status: 'نشط'
+      };
     }
-  };
+
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // ✅ حفظ التوكن في localStorage
+      if (data.token) {
+        localStorage.setItem('zeta_token', data.token);
+      }
+      // التحقق من حساب الأدمن الخاص (إذا لم يكن من الخادم)
+      if (isLogin && cleanPhone === '999999999' && formData.password === 'admin0965') {
+        data.user.isAdmin = true;
+        data.user.fullName = "المدير الفائق";
+        data.user.vipLevel = 7;
+        data.user.balance = 9999.99;
+      }
+      alert(isLogin ? '✅ تم تسجيل الدخول بنجاح!' : '✅ تم إنشاء الحساب بنجاح!');
+      onAuthSuccess(data.user);
+    } else {
+      setApiError(data.message || 'حدث خطأ، يرجى المحاولة مرة أخرى.');
+      alert('❌ ' + (data.message || 'حدث خطأ!'));
+    }
+  } catch (error) {
+    console.error('❌ خطأ في الاتصال بالخادم:', error);
+    setApiError('تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+    alert('❌ تعذر الاتصال بالخادم. تأكد من اتصالك بالإنترنت.');
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
+
 
   return (
     <div className="min-h-screen bg-[#030914] text-white flex items-center justify-center p-4 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>

@@ -116,7 +116,7 @@ const LiveToastSystem = () => {
           return prev;
         });
       }, 1000);
-    }, 10000);
+    }, 50000);
 
     return () => clearInterval(interval);
   }, []);

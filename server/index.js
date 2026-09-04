@@ -1,17 +1,21 @@
-// server/index.js - ZETA EMPIRE Backend (نسخة كاملة ومحدثة)
+// server/index.js - ZETA EMPIRE Backend (نسخة كاملة مع AuditLog)
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-// استيراد النماذج
+// ===== استيراد النماذج =====
 const User = require('./models/User');
 const Transaction = require('./models/Transaction');
+const AuditLog = require('./models/AuditLog');
 const { completeTasksAndDistribute } = require('./taskEngine');
 require('./cronJobs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'zeta_empire_super_secret_key_2026';
 
 // ===== Middleware =====
 app.use(cors());
@@ -25,9 +29,27 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('✅ تم الاتصال بقاعدة البيانات MongoDB'))
 .catch(err => console.error('❌ فشل الاتصال بقاعدة البيانات:', err));
 
-// =====================================================
+// ============================================================
+// ✅ دالة مساعدة لحفظ سجل الإجراءات (Audit Log)
+// ============================================================
+async function saveAuditLog(admin, action, details = {}) {
+  try {
+    const log = new AuditLog({
+      admin: admin || 'المدير الفائق',
+      action: action,
+      details: details,
+      timestamp: new Date()
+    });
+    await log.save();
+    console.log(`📝 سجل إجراء: ${action}`);
+  } catch (error) {
+    console.error('❌ فشل حفظ سجل الإجراءات:', error);
+  }
+}
+
+// ============================================================
 // ✅ واجهات API الأساسية (المستخدمين والمصادقة)
-// =====================================================
+// ============================================================
 
 // [GET] التحقق من صحة الخادم
 app.get('/api/health', (req, res) => {
@@ -55,7 +77,29 @@ app.get('/api/users/:phone', async (req, res) => {
   }
 });
 
-// [POST] تسجيل الدخول
+// [GET] جلب شجرة الفريق لمستخدم
+app.get('/api/team/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .populate('parentA', 'fullName phone vipLevel balance totalDeposit')
+      .populate('parentB', 'fullName phone vipLevel balance totalDeposit')
+      .populate('parentC', 'fullName phone vipLevel balance totalDeposit');
+    
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    
+    const team = {
+      A: user.parentA || [],
+      B: user.parentB || [],
+      C: user.parentC || []
+    };
+    
+    res.json({ success: true, team });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// [POST] تسجيل الدخول (مع bcrypt و JWT)
 app.post('/api/auth/login', async (req, res) => {
   const { phone, password } = req.body;
   try {
@@ -63,16 +107,20 @@ app.post('/api/auth/login', async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     }
-    if (user.password !== password) {
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) {
       return res.status(401).json({ success: false, message: 'كلمة المرور غير صحيحة' });
     }
-    res.json({ success: true, user });
+    const token = jwt.sign({ id: user._id, phone: user.phone, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+    const userData = user.toObject();
+    delete userData.password;
+    res.json({ success: true, user: userData, token });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// [POST] إنشاء حساب جديد
+// [POST] إنشاء حساب جديد (مع bcrypt)
 app.post('/api/auth/register', async (req, res) => {
   const userData = req.body;
   try {
@@ -82,7 +130,10 @@ app.post('/api/auth/register', async (req, res) => {
     }
     const newUser = new User(userData);
     await newUser.save();
-    res.status(201).json({ success: true, user: newUser });
+    const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
+    const userDataResponse = newUser.toObject();
+    delete userDataResponse.password;
+    res.status(201).json({ success: true, user: userDataResponse, token });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -93,15 +144,20 @@ app.post('/api/tasks/complete', async (req, res) => {
   const { userId } = req.body;
   try {
     const result = await completeTasksAndDistribute(userId);
-    res.json({ success: true, result });
+    if (result.success) {
+      await saveAuditLog('النظام', `توزيع أرباح للمستخدم ${userId}`, { profit: result.profit });
+      res.json({ success: true, result });
+    } else {
+      res.status(400).json({ success: false, message: result.message });
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// =====================================================
+// ============================================================
 // ✅ واجهات API للمعاملات (الإيداع والسحب)
-// =====================================================
+// ============================================================
 
 // [POST] إنشاء معاملة جديدة
 app.post('/api/transactions', async (req, res) => {
@@ -112,6 +168,7 @@ app.post('/api/transactions', async (req, res) => {
       status: 'pending'
     });
     await transaction.save();
+    await saveAuditLog('النظام', `إنشاء طلب ${type}`, { userId, amount, network });
     res.status(201).json({ success: true, transaction });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -138,9 +195,9 @@ app.get('/api/transactions/user/:userId', async (req, res) => {
   }
 });
 
-// =====================================================
+// ============================================================
 // ✅ واجهات الإشعارات
-// =====================================================
+// ============================================================
 
 // [GET] جلب الإشعارات (آخر المعاملات)
 app.get('/api/notifications', async (req, res) => {
@@ -161,9 +218,9 @@ app.get('/api/notifications', async (req, res) => {
   }
 });
 
-// =====================================================
-// ✅ واجهات إدارة الأدمن (مع تعديل الرصيد)
-// =====================================================
+// ============================================================
+// ✅ واجهات إدارة الأدمن (مع Audit Log)
+// ============================================================
 
 // [PUT] ترقية مستوى VIP
 app.put('/api/admin/promote/:userId', async (req, res) => {
@@ -171,8 +228,10 @@ app.put('/api/admin/promote/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     if (user.vipLevel >= 7) return res.status(400).json({ success: false, message: 'المستخدم في أعلى مستوى' });
+    const oldVip = user.vipLevel;
     user.vipLevel += 1;
     await user.save();
+    await saveAuditLog('المدير الفائق', `ترقية المستخدم ${user.fullName}`, { from: oldVip, to: user.vipLevel });
     res.json({ success: true, message: `تمت الترقية إلى VIP ${user.vipLevel}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -185,8 +244,10 @@ app.put('/api/admin/demote/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     if (user.vipLevel <= 0) return res.status(400).json({ success: false, message: 'المستخدم في أدنى مستوى' });
+    const oldVip = user.vipLevel;
     user.vipLevel -= 1;
     await user.save();
+    await saveAuditLog('المدير الفائق', `تخفيض المستخدم ${user.fullName}`, { from: oldVip, to: user.vipLevel });
     res.json({ success: true, message: `تم التخفيض إلى VIP ${user.vipLevel}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -198,8 +259,10 @@ app.put('/api/admin/ban/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    const oldStatus = user.status;
     user.status = user.status === 'نشط' ? 'موقف' : 'نشط';
     await user.save();
+    await saveAuditLog('المدير الفائق', `${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'} حساب ${user.fullName}`, { from: oldStatus, to: user.status });
     res.json({ success: true, message: `تم ${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'} الحساب`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -212,52 +275,54 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    const oldBalance = user.balance;
     user.balance += parseFloat(amount);
     await user.save();
+    await saveAuditLog('المدير الفائق', `تعديل رصيد ${user.fullName}`, { amount, reason, from: oldBalance, to: user.balance });
     res.json({ success: true, message: `تم ${parseFloat(amount) >= 0 ? 'إضافة' : 'خصم'} $${Math.abs(amount)}`, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// =====================================================
-// ✅ ✅ دوال قبول ورفض الطلبات (مع تعديل الرصيد) ✅ ✅
-// =====================================================
+// ============================================================
+// ✅ ✅ دوال قبول ورفض الطلبات (مع Audit Log)
+// ============================================================
 
 // [PUT] قبول طلب معاملة (إيداع أو سحب)
 app.put('/api/admin/approve/:txId', async (req, res) => {
   try {
-    // 1. جلب المعاملة
     const tx = await Transaction.findById(req.params.txId);
     if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
 
-    // 2. جلب المستخدم المرتبط بالمعاملة
     const user = await User.findById(tx.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
 
-    // 3. إذا كانت المعاملة من نوع إيداع (deposit)
     if (tx.type === 'deposit') {
-      // إضافة المبلغ إلى رصيد المستخدم
       user.balance += tx.amount;
       user.totalDeposit += tx.amount;
-      await user.save();
-    } 
-    // 4. إذا كانت المعاملة من نوع سحب (withdraw)
-    else if (tx.type === 'withdraw') {
-      // التحقق من كفاية الرصيد (لن يحدث عادةً لأننا نتحقق مسبقاً)
+    } else if (tx.type === 'withdraw') {
       if (user.balance < tx.amount) {
         return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' });
       }
-      // خصم المبلغ من رصيد المستخدم
       user.balance -= tx.amount;
       user.totalWithdrawal += tx.amount;
-      await user.save();
     }
 
-    // 5. تحديث حالة المعاملة
+    await user.save();
+
+    const oldStatus = tx.status;
     tx.status = 'approved';
     tx.adminAction = 'تم القبول بواسطة المدير';
     await tx.save();
+
+    await saveAuditLog('المدير الفائق', `قبول طلب ${tx.type} #${tx._id}`, {
+      userId: user._id,
+      userName: user.fullName,
+      amount: tx.amount,
+      fromStatus: oldStatus,
+      toStatus: 'approved'
+    });
 
     res.json({ 
       success: true, 
@@ -270,16 +335,24 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
   }
 });
 
-// [PUT] رفض طلب معاملة (لا تغيير في الرصيد)
+// [PUT] رفض طلب معاملة (مع Audit Log)
 app.put('/api/admin/reject/:txId', async (req, res) => {
   try {
     const tx = await Transaction.findById(req.params.txId);
     if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
 
-    // تحديث حالة المعاملة فقط (لا تغيير في الرصيد)
+    const oldStatus = tx.status;
     tx.status = 'rejected';
     tx.adminAction = 'تم الرفض بواسطة المدير';
     await tx.save();
+
+    await saveAuditLog('المدير الفائق', `رفض طلب ${tx.type} #${tx._id}`, {
+      userId: tx.userId,
+      userName: tx.userName,
+      amount: tx.amount,
+      fromStatus: oldStatus,
+      toStatus: 'rejected'
+    });
 
     res.json({ 
       success: true, 
@@ -291,9 +364,9 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
   }
 });
 
-// =====================================================
+// ============================================================
 // ✅ واجهات الإشعارات والإدارة الأخرى
-// =====================================================
+// ============================================================
 
 // [POST] إرسال إشعار مخصص لمستخدم
 app.post('/api/admin/notify/:userId', async (req, res) => {
@@ -302,6 +375,7 @@ app.post('/api/admin/notify/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     console.log(`📨 إشعار إلى ${user.fullName}: ${message}`);
+    await saveAuditLog('المدير الفائق', `إرسال إشعار مخصص إلى ${user.fullName}`, { message });
     res.json({ success: true, message: 'تم إرسال الإشعار بنجاح' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -314,7 +388,20 @@ app.post('/api/admin/notify-all', async (req, res) => {
   try {
     const users = await User.find();
     console.log(`📨 إشعار جماعي لـ ${users.length} مستخدم: ${message}`);
+    await saveAuditLog('المدير الفائق', 'إرسال إشعار جماعي', { count: users.length, message });
     res.json({ success: true, message: `تم إرسال الإشعار لـ ${users.length} مستخدم` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// ✅ جلب سجل الإجراءات (للأدمن)
+// ============================================================
+app.get('/api/admin/audit', async (req, res) => {
+  try {
+    const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(100);
+    res.json({ success: true, logs });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

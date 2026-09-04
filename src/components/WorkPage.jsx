@@ -41,34 +41,50 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleExecuteTask = async (index) => {
-    if (isProcessing || index !== completedCount) return;
-    setIsProcessing(true); setActiveTaskIndex(index);
-    
-    // محاكاة تنفيذ المهمة (تأخير 2 ثانية)
-    setTimeout(async () => {
-      const newCompletedCount = completedCount + 1;
-      setCompletedCount(newCompletedCount);
-      setIsProcessing(false); setActiveTaskIndex(null);
 
-      if (newCompletedCount === 5) {
-        // استدعاء API لإكمال المهام (توزيع الأرباح)
-        try {
-          const res = await fetch(`${API_BASE}/api/tasks/complete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user._id || user.id })
-          });
-          const data = await res.json();
-          if (data.success) console.log('✅ تم توزيع الأرباح:', data.result);
-          else console.error('❌ فشل توزيع الأرباح');
-        } catch (e) { console.error('❌ خطأ في الاتصال بالخادم'); }
-        
-        setShowRenewMessage(true);
+
+const handleExecuteTask = async (index) => {
+  if (isProcessing || index !== completedCount) return;
+  setIsProcessing(true);
+  setActiveTaskIndex(index);
+  
+  // محاكاة تنفيذ المهمة (تأخير 2 ثانية)
+  setTimeout(async () => {
+    const newCompletedCount = completedCount + 1;
+    setCompletedCount(newCompletedCount);
+    setIsProcessing(false);
+    setActiveTaskIndex(null);
+
+    if (newCompletedCount === 5) {
+      // ✅ إرسال طلب إلى الخادم لتوزيع الأرباح
+      setIsProcessing(true);
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+        const res = await fetch(`${API_BASE}/api/tasks/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user._id || user.id })
+        });
+        const data = await res.json();
+        if (data.success) {
+          console.log('✅ تم توزيع الأرباح:', data);
+          setShowRenewMessage(true);
+          // تحديث بيانات المستخدم (يمكن جلبها من الخادم)
+        } else {
+          console.error('❌ فشل توزيع الأرباح:', data.message);
+          alert('❌ حدث خطأ أثناء توزيع الأرباح، يرجى المحاولة مرة أخرى.');
+        }
+      } catch (error) {
+        console.error('❌ خطأ في الاتصال بالخادم:', error);
+        alert('❌ تعذر الاتصال بالخادم، تأكد من اتصالك بالإنترنت.');
+      } finally {
+        setIsProcessing(false);
         setTimeout(() => setShowRenewMessage(false), 6000);
       }
-    }, 2000);
-  };
+    }
+  }, 2000);
+};
+
 
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>

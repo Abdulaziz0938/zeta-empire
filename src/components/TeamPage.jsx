@@ -14,9 +14,45 @@ import {
   Layers
 } from 'lucide-react';
 
+
+
+
 const TeamPage = ({ user, lang = 'ar' }) => {
   const [activeTab, setActiveTab] = useState('A');
   const [copied, setCopied] = useState(false);
+  const [teamData, setTeamData] = useState({ A: [], B: [], C: [] });
+  const [loading, setLoading] = useState(true);
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+
+  // ===== جلب بيانات الفريق الحقيقية =====
+  useEffect(() => {
+    const fetchTeam = async () => {
+      if (!user?._id && !user?.id) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/team/${user._id || user.id}`);
+        const data = await res.json();
+        if (data.success) {
+          setTeamData(data.team);
+        } else {
+          console.error('فشل جلب الفريق:', data.message);
+        }
+      } catch (error) {
+        console.error('خطأ في جلب الفريق:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTeam();
+  }, [user]);
+
+  
+
+
+
+
 
   const t = {
     ar: {
