@@ -162,7 +162,7 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 // =====================================================
-// ✅ واجهات إدارة الأدمن
+// ✅ واجهات إدارة الأدمن (مع تعديل الرصيد)
 // =====================================================
 
 // [PUT] ترقية مستوى VIP
@@ -206,7 +206,7 @@ app.put('/api/admin/ban/:userId', async (req, res) => {
   }
 });
 
-// [PUT] تعديل رصيد مستخدم
+// [PUT] تعديل رصيد مستخدم يدوياً (من الأدمن)
 app.put('/api/admin/balance/:userId', async (req, res) => {
   const { amount, reason } = req.body;
   try {
@@ -221,32 +221,71 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
 });
 
 // =====================================================
-// ✅ ✅ دوال قبول ورفض الطلبات (الجديدة) ✅ ✅
+// ✅ ✅ دوال قبول ورفض الطلبات (مع تعديل الرصيد) ✅ ✅
 // =====================================================
 
-// [PUT] قبول طلب معاملة
+// [PUT] قبول طلب معاملة (إيداع أو سحب)
 app.put('/api/admin/approve/:txId', async (req, res) => {
   try {
+    // 1. جلب المعاملة
     const tx = await Transaction.findById(req.params.txId);
     if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
+
+    // 2. جلب المستخدم المرتبط بالمعاملة
+    const user = await User.findById(tx.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+
+    // 3. إذا كانت المعاملة من نوع إيداع (deposit)
+    if (tx.type === 'deposit') {
+      // إضافة المبلغ إلى رصيد المستخدم
+      user.balance += tx.amount;
+      user.totalDeposit += tx.amount;
+      await user.save();
+    } 
+    // 4. إذا كانت المعاملة من نوع سحب (withdraw)
+    else if (tx.type === 'withdraw') {
+      // التحقق من كفاية الرصيد (لن يحدث عادةً لأننا نتحقق مسبقاً)
+      if (user.balance < tx.amount) {
+        return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' });
+      }
+      // خصم المبلغ من رصيد المستخدم
+      user.balance -= tx.amount;
+      user.totalWithdrawal += tx.amount;
+      await user.save();
+    }
+
+    // 5. تحديث حالة المعاملة
     tx.status = 'approved';
     tx.adminAction = 'تم القبول بواسطة المدير';
     await tx.save();
-    res.json({ success: true, message: 'تم قبول المعاملة', transaction: tx });
+
+    res.json({ 
+      success: true, 
+      message: 'تم قبول المعاملة وتحديث الرصيد بنجاح', 
+      transaction: tx,
+      newBalance: user.balance
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// [PUT] رفض طلب معاملة
+// [PUT] رفض طلب معاملة (لا تغيير في الرصيد)
 app.put('/api/admin/reject/:txId', async (req, res) => {
   try {
     const tx = await Transaction.findById(req.params.txId);
     if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
+
+    // تحديث حالة المعاملة فقط (لا تغيير في الرصيد)
     tx.status = 'rejected';
     tx.adminAction = 'تم الرفض بواسطة المدير';
     await tx.save();
-    res.json({ success: true, message: 'تم رفض المعاملة', transaction: tx });
+
+    res.json({ 
+      success: true, 
+      message: 'تم رفض المعاملة', 
+      transaction: tx 
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
