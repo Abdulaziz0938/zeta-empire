@@ -1,6 +1,5 @@
-import { RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
-import { Crown, Zap, ArrowLeft, Award, Users, DollarSign, Lock, CheckCircle2, TrendingUp, Calculator, Star } from 'lucide-react';
+import { Crown, Zap, ArrowLeft, Award, Users, DollarSign, Lock, CheckCircle2, TrendingUp, Calculator, Star, RefreshCw } from 'lucide-react';
 
 const VIPOverview = ({ user, lang = 'ar', onBack }) => {
   const [depositInput, setDepositInput] = useState('');
@@ -20,7 +19,6 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
 
   const userVip = user?.vipLevel || 0;
   const userBalance = user?.balance || 0;
-  const userName = user?.fullName || '';
 
   const handleCalculate = () => {
     const amount = parseFloat(depositInput);
@@ -45,7 +43,6 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
     });
   };
 
-  // ===== شراء VIP (مع تحديث localStorage) =====
   const handlePurchaseVIP = async (targetLevel) => {
     if (!user) {
       alert('يرجى تسجيل الدخول أولاً');
@@ -55,10 +52,10 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
       alert(`⚠️ أنت بالفعل في VIP ${userVip} أو أعلى!`);
       return;
     }
-    const vipPrice = vipLevels[targetLevel-1]?.minDeposit || 0;
+    const vipPrice = vipLevels[targetLevel - 1]?.minDeposit || 0;
     const confirmPurchase = confirm(`هل أنت متأكد من شراء VIP ${targetLevel} مقابل $${vipPrice}؟`);
     if (!confirmPurchase) return;
-    
+
     setLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/vip/purchase`, {
@@ -69,10 +66,9 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
       const data = await res.json();
       if (data.success) {
         alert(`✅ ${data.message}`);
-        // تحديث بيانات المستخدم في localStorage
-        const updatedUser = { 
-          ...user, 
-          vipLevel: data.user.vipLevel, 
+        const updatedUser = {
+          ...user,
+          vipLevel: data.user.vipLevel,
           balance: data.user.balance,
           totalDeposit: data.user.totalDeposit
         };
@@ -88,7 +84,6 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
     }
   };
 
-  // ===== تحديث البيانات من الخادم =====
   const refreshUserData = async () => {
     if (!user?.phone) {
       alert('لا يوجد مستخدم مسجل');
@@ -176,7 +171,6 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* رأس الصفحة مع زر تحديث */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 rounded-2xl bg-white/5 border border-white/10 hover:border-[#00f3ff] text-gray-400 hover:text-white transition-all">
@@ -190,7 +184,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button 
+            <button
               onClick={refreshUserData}
               className="px-4 py-2 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center gap-2"
             >
@@ -205,18 +199,17 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           </div>
         </div>
 
-        {/* شبكة البطاقات */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {vipLevels.map((vip) => {
             const isActive = vip.level === userVip;
             const isPurchasable = vip.level > userVip;
             const canAfford = userBalance >= vip.minDeposit;
-            
+
             let cardStyle = 'bg-white/[0.02] border-white/10 opacity-60';
             let statusText = t.locked;
             let statusIcon = <Lock className="w-3 h-3" />;
             let statusColor = 'text-gray-400';
-            
+
             if (isActive) {
               cardStyle = 'bg-gradient-to-br from-green-500/20 to-cyan-500/10 border-green-500/60 shadow-[0_0_30px_rgba(34,197,94,0.2)]';
               statusText = t.activeBadge;
@@ -228,10 +221,9 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
               statusIcon = <DollarSign className="w-3 h-3" />;
               statusColor = 'text-cyan-400';
             }
-            
+
             return (
               <div key={vip.level} className={`p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300 relative overflow-hidden ${cardStyle}`}>
-                {/* شارة الحالة */}
                 <div className={`absolute top-2 right-2 bg-white/5 border rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1 ${statusColor}`}>
                   {statusIcon} {statusText}
                 </div>
@@ -263,7 +255,6 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
                   </div>
                 </div>
 
-                {/* زر الإجراء */}
                 {isActive ? (
                   <button disabled className="w-full mt-4 py-2.5 rounded-xl bg-green-500/20 text-green-400 font-bold text-sm border border-green-500/30 cursor-not-allowed flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-4 h-4" /> {t.activeBadge}
@@ -273,8 +264,8 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
                     onClick={() => handlePurchaseVIP(vip.level)}
                     disabled={loading || !canAfford}
                     className={`w-full mt-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
-                      canAfford 
-                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:shadow-[0_0_25px_rgba(250,204,21,0.6)]' 
+                      canAfford
+                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:shadow-[0_0_25px_rgba(250,204,21,0.6)]'
                         : 'bg-white/5 text-gray-500 cursor-not-allowed'
                     }`}
                   >
@@ -290,7 +281,6 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           })}
         </div>
 
-        {/* حاسبة العائد */}
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-2xl border border-[#00f3ff]/20 rounded-3xl p-6 shadow-[0_0_25px_rgba(0,243,255,0.1)]">
           <div className="flex items-center gap-3 mb-4">
             <Calculator className="w-6 h-6 text-cyan-400" />
@@ -298,15 +288,15 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           </div>
           <p className="text-sm text-gray-400 mb-4">{t.calculateDesc}</p>
           <div className="flex flex-col md:flex-row gap-4">
-            <input 
-              type="number" 
-              value={depositInput} 
-              onChange={(e) => setDepositInput(e.target.value)} 
-              placeholder={t.amountPlaceholder} 
-              className="flex-1 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff] transition-all" 
+            <input
+              type="number"
+              value={depositInput}
+              onChange={(e) => setDepositInput(e.target.value)}
+              placeholder={t.amountPlaceholder}
+              className="flex-1 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff] transition-all"
             />
-            <button 
-              onClick={handleCalculate} 
+            <button
+              onClick={handleCalculate}
               className="px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all whitespace-nowrap"
             >
               {t.calculateBtn}
