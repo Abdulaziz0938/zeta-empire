@@ -67,29 +67,56 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   // ✅ دوال الإجراءات (مع إصلاح استخدام _id)
   // ============================================================
 
-  // ✅ قبول طلب
-  const handleApprove = async (txId) => {
-    if (!confirm('✅ تأكيد قبول الطلب؟')) return;
-    try {
-      const res = await fetch(`${API_BASE}/api/admin/approve/${txId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('✅ تم قبول الطلب بنجاح');
-        setTransactions(prev => prev.map(tx => 
-          tx._id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
-        ));
-        setAuditLogs(prev => [{ id: Date.now(), admin: 'المدير الفائق', action: `قبول طلب #${txId}`, timestamp: new Date().toLocaleString('ar-EG') }, ...prev]);
-        fetchData();
-      } else {
-        alert('❌ ' + data.message);
+
+
+
+
+// ✅ قبول طلب (مع تحديث الجلسة)
+const handleApprove = async (txId) => {
+  if (!confirm('✅ تأكيد قبول الطلب؟')) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/approve/${txId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert('✅ تم قبول الطلب بنجاح');
+
+      // تحديث حالة المعاملة محلياً
+      setTransactions(prev => prev.map(tx => 
+        tx._id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
+      ));
+
+      // ✅ تحديث بيانات المستخدم في localStorage
+      if (data.user) {
+        const currentUser = JSON.parse(localStorage.getItem('zeta_user') || '{}');
+        if (currentUser._id === data.user._id) {
+          localStorage.setItem('zeta_user', JSON.stringify(data.user));
+        }
       }
-    } catch (error) {
-      alert('❌ خطأ في الاتصال بالخادم');
+
+      setAuditLogs(prev => [{ 
+        id: Date.now(), 
+        admin: 'المدير الفائق', 
+        action: `قبول طلب #${txId}`, 
+        timestamp: new Date().toLocaleString('ar-EG') 
+      }, ...prev]);
+
+      fetchData();
+    } else {
+      alert('❌ ' + data.message);
     }
-  };
+  } catch (error) {
+    alert('❌ خطأ في الاتصال بالخادم');
+  }
+};
+
+
+
+
+
 
   // ✅ رفض طلب
   const handleReject = async (txId) => {
