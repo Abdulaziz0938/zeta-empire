@@ -25,30 +25,22 @@ function generateDailyTasks(userDeposit, vipLevelCommission) {
   };
 }
 
-
-
-
+// ===== إكمال المهام وتوزيع الأرباح =====
 async function completeTasksAndDistribute(userId) {
+  console.log(`📌 بدء توزيع الأرباح للمستخدم ${userId}`);
+  
   try {
     const user = await User.findById(userId);
-    if (!user) throw new Error('المستخدم غير موجود');
-
-    // ✅ منع تكرار المهام (تأكد من عدم تنفيذها أكثر من مرة في اليوم)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (user.lastTaskDate) {
-      const lastDate = new Date(user.lastTaskDate);
-      lastDate.setHours(0, 0, 0, 0);
-      if (lastDate.getTime() === today.getTime() && user.tasksCompletedToday === 5) {
-        return { 
-          success: false, 
-          message: 'لقد أكملت جميع مهام اليوم بالفعل. انتظر حتى الغد.' 
-        };
-      }
+    if (!user) {
+      console.error('❌ المستخدم غير موجود');
+      return { success: false, message: 'المستخدم غير موجود' };
     }
 
-    // تعريف مبالغ العقد والنسب حسب مستوى VIP
+    console.log(`👤 المستخدم: ${user.fullName} (VIP ${user.vipLevel})`);
+    console.log(`💰 الرصيد الحالي: ${user.balance}`);
+    console.log(`💰 إجمالي الإيداعات: ${user.totalDeposit}`);
+
+    // ✅ تعريف مبالغ العقد والنسب حسب مستوى VIP
     const vipContract = { 0: 0, 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };
     const vipRates = { 0: 0, 1: 4.0, 2: 4.5, 3: 5.0, 4: 5.5, 5: 6.0, 6: 6.5, 7: 7.0 };
 
@@ -56,25 +48,47 @@ async function completeTasksAndDistribute(userId) {
     const contractAmount = vipContract[user.vipLevel] || 0;
     const profit = contractAmount * (rate / 100);
 
+    console.log(`📊 مستوى VIP: ${user.vipLevel}, النسبة: ${rate}%, مبلغ العقد: ${contractAmount}`);
+    console.log(`💰 الربح المحسوب: ${profit}`);
+
     if (profit <= 0) {
+      console.warn('⚠️ لا توجد أرباح لحسابها');
       return { 
         success: false, 
-        message: 'لا توجد أرباح لحسابها. تأكد من أن لديك عقد VIP نشط.' 
+        message: 'لا توجد أرباح لحسابها (تأكد من أن لديك عقد VIP نشط).' 
       };
     }
 
-    // ✅ استخدام قفل (Lock) لمنع التنفيذ المتزامن
-    // يمكننا استخدام حالة المؤقت أو حقل في قاعدة البيانات
+    // ✅ التحقق من أن المهام لم تُنفذ اليوم
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     
-    // 1. تحديث حالة المستخدم
-    user.balance += profit;
-    user.dailyEarnings += profit;
-    user.totalEarnings += profit;
+    if (user.lastTaskDate) {
+      const lastDate = new Date(user.lastTaskDate);
+      lastDate.setHours(0, 0, 0, 0);
+      if (lastDate.getTime() === today.getTime() && user.tasksCompletedToday === 5) {
+        console.warn('⚠️ تم إكمال المهام اليوم بالفعل');
+        return { 
+          success: false, 
+          message: 'لقد أكملت جميع مهام اليوم بالفعل. انتظر حتى الغد.' 
+        };
+      }
+    }
+
+    // 1. إضافة الربح إلى رصيد المستخدم
+    const oldBalance = user.balance;
+    user.balance = (Number(user.balance) || 0) + profit;
+    user.dailyEarnings = (Number(user.dailyEarnings) || 0) + profit;
+    user.totalEarnings = (Number(user.totalEarnings) || 0) + profit;
     user.tasksCompletedToday = 5;
     user.lastTaskDate = new Date();
-    await user.save();
 
-    // 2. تسجيل المعاملة
+    console.log(`💰 الرصيد القديم: ${oldBalance}, الرصيد الجديد: ${user.balance}`);
+
+    await user.save();
+    console.log('✅ تم حفظ تحديثات المستخدم');
+
+    // 2. تسجيل المعاملة (ربح)
     const transaction = new Transaction({
       userId: user._id,
       userName: user.fullName,
@@ -87,12 +101,15 @@ async function completeTasksAndDistribute(userId) {
       note: `أرباح يومية VIP ${user.vipLevel} (${rate}%)`
     });
     await transaction.save();
+    console.log(`✅ تم تسجيل معاملة الربح: $${profit}`);
 
-    // 3. توزيع العمولات للإحالات
+    // 3. توزيع العمولات للإحالات (الدخل السلبي)
     try {
       await distributeReferralCommissions(user, profit);
+      console.log('✅ تم توزيع عمولات الإحالة');
     } catch (err) {
       console.error('❌ فشل توزيع عمولات الإحالة:', err);
+      // لا نوقف العملية بسبب فشل العمولات
     }
 
     return {
@@ -106,11 +123,6 @@ async function completeTasksAndDistribute(userId) {
     return { success: false, message: error.message };
   }
 }
-
-
-
-
-
 
 module.exports = {
   generateDailyTasks,
