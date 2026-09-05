@@ -9,7 +9,6 @@ const userSchema = new mongoose.Schema({
   inviteCode: { type: String, required: true, unique: true },
   referredBy: { type: String, default: null },
   
-  // شجرة الإحالة
   parentA: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   parentB: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   parentC: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
@@ -31,7 +30,7 @@ const userSchema = new mongoose.Schema({
   status: { type: String, default: 'نشط' }
 }, { timestamps: true });
 
-// ✅ تشفير كلمة المرور قبل حفظ المستخدم
+// تشفير كلمة المرور قبل الحفظ
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);
@@ -39,7 +38,7 @@ userSchema.pre('save', async function(next) {
   next();
 });
 
-// ✅ دالة مقارنة كلمة المرور (التي يستخدمها index.js)
+// دالة مقارنة كلمة المرور
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
