@@ -9,7 +9,7 @@ import {
 import { useZeta } from '../context/ZetaContext.jsx';
 
 const AdminPanel = ({ onBack, onNavigate }) => {
-  // ===== الحالات العامة =====
+  // ... (جميع الحالات كما هي) ...
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -20,69 +20,43 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const [users, setUsers] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
-
-  // ===== نافذة تعديل الرصيد =====
   const [isEditBalanceModalOpen, setIsEditBalanceModalOpen] = useState(false);
   const [editBalanceUser, setEditBalanceUser] = useState(null);
   const [editAmount, setEditAmount] = useState('');
   const [editReason, setEditReason] = useState('');
-
-  // ===== نافذة الإشعار المخصص =====
   const [isUserNotificationModalOpen, setIsUserNotificationModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [userNotificationMessage, setUserNotificationMessage] = useState('');
-
-  // ===== نافذة الإشعار الجماعي =====
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
-
   const [isProcessing, setIsProcessing] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
   
-  // ✅ استدعاء السياق للحصول على وظائف تحديث المستخدم
   const { refreshUser, user: currentUser } = useZeta();
 
-  // ===== جلب البيانات الحقيقية من الخادم =====
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // جلب المستخدمين
       const usersRes = await fetch(`${API_BASE}/api/users`);
       const usersData = await usersRes.json();
-      if (usersData.success) {
-        setUsers(usersData.users);
-      } else {
-        console.warn('⚠️ فشل جلب المستخدمين:', usersData.message);
-        setUsers([]);
-      }
+      if (usersData.success) setUsers(usersData.users);
+      else setUsers([]);
 
-      // جلب المعاملات
       const txsRes = await fetch(`${API_BASE}/api/transactions`);
       const txsData = await txsRes.json();
-      if (txsData.success) {
-        setTransactions(txsData.transactions);
-      } else {
-        console.warn('⚠️ فشل جلب المعاملات:', txsData.message);
-        setTransactions([]);
-      }
+      if (txsData.success) setTransactions(txsData.transactions);
+      else setTransactions([]);
 
-      // جلب سجل الإجراءات
       try {
         const auditRes = await fetch(`${API_BASE}/api/admin/audit`);
         const auditData = await auditRes.json();
-        if (auditData.success) {
-          setAuditLogs(auditData.logs);
-        } else {
-          setAuditLogs([]);
-        }
+        if (auditData.success) setAuditLogs(auditData.logs);
+        else setAuditLogs([]);
       } catch (err) {
-        console.warn('⚠️ فشل جلب سجل الإجراءات:', err.message);
         setAuditLogs([]);
       }
-
       setLastUpdated(new Date());
     } catch (error) {
-      console.error('❌ فشل جلب البيانات:', error);
       setUsers([]);
       setTransactions([]);
       setAuditLogs([]);
@@ -91,18 +65,29 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ===== تحميل البيانات عند تحميل الصفحة =====
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // ============================================================
-  // ✅ دوال الإجراءات (مع تحديث واجهة المستخدم فوراً)
-  // ============================================================
+  // ✅ دالة مساعدة لتحديث المستخدم الحالي إذا كان هو نفسه
+  const refreshCurrentUserIfMatch = async (updatedUser) => {
+    if (!updatedUser || !currentUser) return;
+    
+    // ✅ تحويل المعرفات إلى String للمقارنة الآمنة
+    const updatedUserId = String(updatedUser._id || updatedUser.id || '');
+    const currentUserId = String(currentUser._id || currentUser.id || '');
+    
+    console.log('🔍 مقارنة المعرفات:', updatedUserId, '===', currentUserId);
+    
+    if (updatedUserId === currentUserId) {
+      console.log('🔄 تم تحديث بيانات المستخدم الحالي فوراً');
+      await refreshUser();
+    }
+  };
 
-  // ✅ قبول طلب (مع تحديث المستخدم الحالي فوراً)
+  // ✅ قبول طلب (مع تحديث المستخدم الحالي)
   const handleApprove = async (txId) => {
     if (!confirm('✅ تأكيد قبول الطلب؟')) return;
     try {
@@ -115,18 +100,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       if (data.success) {
         alert('✅ تم قبول الطلب بنجاح');
 
-        // ✅ تحديث بيانات المستخدم الحالي إذا كان هو نفسه المستخدم الذي تم قبول طلبه
-        if (data.user && currentUser) {
-          // نحول المعرفات إلى string للمقارنة الآمنة
-          const updatedUserId = data.user._id || data.user.id;
-          const currentUserId = currentUser._id || currentUser.id;
-          if (updatedUserId === currentUserId) {
-            console.log('🔄 تم تحديث بيانات المستخدم الحالي فوراً');
-            await refreshUser(); // تحديث فوري من السياق
-          }
-        }
+        // ✅ تحديث المستخدم الحالي إذا كان هو صاحب الطلب
+        await refreshCurrentUserIfMatch(data.user);
 
-        // تحديث قائمة المعاملات والمستخدمين في اللوحة
+        // تحديث قائمة المعاملات
         setTransactions(prev => prev.map(tx => 
           tx._id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
         ));
@@ -138,7 +115,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           timestamp: new Date().toLocaleString('ar-EG') 
         }, ...prev]);
 
-        // تحديث شامل (لضمان تحديث قوائم الأدمن)
         fetchData();
       } else {
         alert('❌ ' + data.message);
@@ -178,7 +154,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ✅ رفع مستوى VIP (مع تحديث المستخدم الحالي)
+  // ✅ رفع مستوى VIP
   const handlePromoteVip = async (userId) => {
     if (!confirm('تأكيد رفع مستوى VIP؟')) return;
     try {
@@ -186,14 +162,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const data = await res.json();
       if (data.success) {
         alert(`✅ تمت الترقية إلى VIP ${data.user.vipLevel}`);
-        // تحديث المستخدم الحالي إذا كان هو نفسه
-        if (data.user && currentUser) {
-          const updatedUserId = data.user._id || data.user.id;
-          const currentUserId = currentUser._id || currentUser.id;
-          if (updatedUserId === currentUserId) {
-            await refreshUser();
-          }
-        }
+        await refreshCurrentUserIfMatch(data.user);
         fetchData();
       } else alert('❌ ' + data.message);
     } catch (error) {
@@ -201,7 +170,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ✅ تخفيض مستوى VIP (مع تحديث المستخدم الحالي)
+  // ✅ تخفيض مستوى VIP
   const handleDemoteVip = async (userId) => {
     if (!confirm('⚠️ تأكيد تخفيض مستوى VIP؟')) return;
     try {
@@ -209,13 +178,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const data = await res.json();
       if (data.success) {
         alert(`✅ تم التخفيض إلى VIP ${data.user.vipLevel}`);
-        if (data.user && currentUser) {
-          const updatedUserId = data.user._id || data.user.id;
-          const currentUserId = currentUser._id || currentUser.id;
-          if (updatedUserId === currentUserId) {
-            await refreshUser();
-          }
-        }
+        await refreshCurrentUserIfMatch(data.user);
         fetchData();
       } else alert('❌ ' + data.message);
     } catch (error) {
@@ -223,7 +186,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ✅ تجميد / إلغاء تجميد (مع تحديث المستخدم الحالي)
+  // ✅ تجميد / إلغاء تجميد
   const handleToggleBan = async (userId) => {
     if (!confirm('تأكيد تغيير حالة الحساب؟')) return;
     try {
@@ -231,13 +194,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const data = await res.json();
       if (data.success) {
         alert(`✅ ${data.message}`);
-        if (data.user && currentUser) {
-          const updatedUserId = data.user._id || data.user.id;
-          const currentUserId = currentUser._id || currentUser.id;
-          if (updatedUserId === currentUserId) {
-            await refreshUser();
-          }
-        }
+        await refreshCurrentUserIfMatch(data.user);
         fetchData();
       } else alert('❌ ' + data.message);
     } catch (error) {
@@ -245,7 +202,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ✅ تعديل الرصيد (مع تحديث المستخدم الحالي)
+  // ✅ تعديل الرصيد
   const handleEditBalance = (user) => {
     setEditBalanceUser(user);
     setEditAmount('');
@@ -268,13 +225,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       if (data.success) {
         alert(`✅ ${data.message}`);
         setIsEditBalanceModalOpen(false);
-        if (data.user && currentUser) {
-          const updatedUserId = data.user._id || data.user.id;
-          const currentUserId = currentUser._id || currentUser.id;
-          if (updatedUserId === currentUserId) {
-            await refreshUser();
-          }
-        }
+        await refreshCurrentUserIfMatch(data.user);
         fetchData();
       } else alert('❌ ' + data.message);
     } catch (error) {
@@ -333,7 +284,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ===== الشارات والتصفية =====
+  // ===== باقي الكود (الشارات، التصفية، التصميم، التبويبات) =====
   const getUserBadge = (user) => {
     const count = user.referrals || 0;
     if (count >= 20) return { icon: '👑', label: 'ملك التسويق' };
@@ -351,7 +302,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     return matchesSearch && matchesType;
   });
 
-  // ===== الإحصائيات =====
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'نشط').length;
   const pendingTx = transactions.filter(t => t.status === 'pending').length;
@@ -368,7 +318,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     count: users.filter(u => u.vipLevel === level).length
   }));
 
-  // ===== بيانات الرسم البياني (آخر 7 أيام) =====
   const getLast7Days = () => {
     const days = [];
     for (let i = 6; i >= 0; i--) {
@@ -395,18 +344,14 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     { key: 'audit', label: 'سجل الإجراءات', icon: Clock },
   ];
 
-  // ===== التصميم =====
   const bgColor = isDarkMode ? 'bg-[#030914]' : 'bg-gray-50';
   const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
   const cardBg = isDarkMode ? 'bg-[#00f3ff]/[0.02]' : 'bg-white/90';
   const borderColor = isDarkMode ? 'border-[#00f3ff]/20' : 'border-gray-300/40';
   const inputBg = isDarkMode ? 'bg-white/5' : 'bg-white/80';
-  const headerText = isDarkMode ? 'text-white' : 'text-gray-900';
-  const subText = isDarkMode ? 'text-cyan-400/80' : 'text-cyan-600';
 
   return (
     <div className={`min-h-screen ${bgColor} ${textColor} p-4 md:p-6 font-sans transition-colors duration-300`} dir="rtl">
-      
       {isDarkMode && (
         <div className="fixed inset-0 pointer-events-none">
           <div className="absolute top-0 right-1/3 w-[500px] h-[500px] bg-[#00f3ff]/5 rounded-full blur-[150px]" />
@@ -415,7 +360,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       )}
 
       <div className="max-w-7xl mx-auto space-y-6 relative">
-        
         {/* ===== الهيدر ===== */}
         <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_30px_rgba(0,243,255,0.1)] flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-300`}>
           <div className="flex items-center gap-3">
@@ -423,8 +367,8 @@ const AdminPanel = ({ onBack, onNavigate }) => {
               <ShieldAlert className="w-6 h-6" />
             </div>
             <div>
-              <h1 className={`text-xl font-extrabold ${headerText} tracking-wide`}>لوحة التحكم الفائقة</h1>
-              <p className={`text-xs ${subText} font-mono`}>ZETA System Administration</p>
+              <h1 className={`text-xl font-extrabold ${textColor} tracking-wide`}>لوحة التحكم الفائقة</h1>
+              <p className={`text-xs ${isDarkMode ? 'text-cyan-400/80' : 'text-cyan-600'} font-mono`}>ZETA System Administration</p>
             </div>
           </div>
 
@@ -432,16 +376,13 @@ const AdminPanel = ({ onBack, onNavigate }) => {
             <button onClick={onBack} className="px-4 py-2 rounded-2xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold text-xs hover:bg-green-500/40 transition-all flex items-center gap-2">
               <Home className="w-4 h-4" /> العودة للرئيسية
             </button>
-
             <button onClick={() => setIsDarkMode(!isDarkMode)} className={`px-4 py-2 rounded-2xl border transition-all flex items-center gap-2 text-xs font-bold ${isDarkMode ? 'bg-white/10 border-white/20 text-yellow-300 hover:bg-white/20' : 'bg-gray-200/80 border-gray-300 text-gray-700 hover:bg-gray-300'}`}>
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               <span>{isDarkMode ? '☀️ نهاري' : '🌙 ليلي'}</span>
             </button>
-
             <button onClick={() => setIsNotificationModalOpen(true)} className="px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(0,243,255,0.3)] hover:shadow-[0_0_25px_rgba(0,243,255,0.6)] transition-all flex items-center gap-2">
               <Megaphone className="w-4 h-4" /> إشعار للكل
             </button>
-
             <div className="px-3 py-2 rounded-2xl bg-yellow-500/10 border border-yellow-500/30 flex items-center gap-2 text-xs font-bold text-yellow-400">
               <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">معلقة: {pendingTx}</span>
@@ -451,32 +392,32 @@ const AdminPanel = ({ onBack, onNavigate }) => {
 
         {/* ===== كروت الإحصائيات ===== */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center`}>
             <Users className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
             <p className="text-[10px] text-gray-400">المستخدمين</p>
             <p className={`text-lg font-black ${textColor}`}>{totalUsers}</p>
           </div>
-          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center`}>
             <UserCheck className="w-5 h-5 text-green-400 mx-auto mb-1" />
             <p className="text-[10px] text-gray-400">نشطاء</p>
             <p className="text-lg font-black text-green-400">{activeUsers}</p>
           </div>
-          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center`}>
             <ArrowDownLeft className="w-5 h-5 text-green-400 mx-auto mb-1" />
             <p className="text-[10px] text-gray-400">إيداعات</p>
             <p className="text-lg font-black text-green-400">${totalDeposits.toFixed(0)}</p>
           </div>
-          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center`}>
             <ArrowUpRight className="w-5 h-5 text-orange-400 mx-auto mb-1" />
             <p className="text-[10px] text-gray-400">سحوبات</p>
             <p className="text-lg font-black text-orange-400">${totalWithdrawals.toFixed(0)}</p>
           </div>
-          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center`}>
             <Wallet className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
             <p className="text-[10px] text-gray-400">رسوم</p>
             <p className="text-lg font-black text-yellow-400">${totalFees.toFixed(2)}</p>
           </div>
-          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-2xl p-4 text-center`}>
             <Activity className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
             <p className="text-[10px] text-gray-400">معلقة</p>
             <p className="text-lg font-black text-cyan-400">{pendingTx}</p>
@@ -484,7 +425,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         </div>
 
         {/* ===== التبويبات ===== */}
-        <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-2 flex flex-wrap gap-1 transition-colors`}>
+        <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-2 flex flex-wrap gap-1`}>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -496,14 +437,12 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           })}
         </div>
 
-        {/* ============================================================ */}
         {/* ===== 1. نظرة عامة ===== */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
-            <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] transition-colors`}>
+            <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6`}>
               <h3 className={`text-lg font-bold ${isDarkMode ? 'text-cyan-300' : 'text-cyan-700'} flex items-center gap-2 mb-4`}>
-                <Award className="w-5 h-5 text-yellow-400" />
-                أفضل 5 مسوقين
+                <Award className="w-5 h-5 text-yellow-400" /> أفضل 5 مسوقين
               </h3>
               <div className="space-y-2">
                 {topReferrers.length === 0 ? (
@@ -519,8 +458,8 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                       <div className="flex items-center gap-4 text-sm">
                         <span className="text-cyan-400 font-mono">VIP {u.vipLevel}</span>
                         <span className="text-green-400 font-bold">{u.referrals || 0} إحالة</span>
-                        <button onClick={() => handlePromoteVip(u._id)} className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/40 transition-all">رفع</button>
-                        <button onClick={() => handleDemoteVip(u._id)} className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 text-[10px] font-bold hover:bg-red-500/40 transition-all">تخفيض</button>
+                        <button onClick={() => handlePromoteVip(u._id)} className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/40">رفع</button>
+                        <button onClick={() => handleDemoteVip(u._id)} className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 text-[10px] font-bold hover:bg-red-500/40">تخفيض</button>
                       </div>
                     </div>
                   ))
@@ -529,7 +468,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6 transition-colors`}>
+              <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6`}>
                 <h4 className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4 flex items-center gap-2`}>
                   <TrendingUp className="w-4 h-4 text-cyan-400" /> حركة الأيام السبعة الماضية
                 </h4>
@@ -550,7 +489,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                 </div>
               </div>
 
-              <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6 transition-colors`}>
+              <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6`}>
                 <h4 className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-4 flex items-center gap-2`}>
                   <PieChart className="w-4 h-4 text-cyan-400" /> توزيع المستخدمين حسب VIP
                 </h4>
@@ -571,7 +510,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
               </div>
             </div>
 
-            <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6 transition-colors`}>
+            <div className={`${cardBg} backdrop-blur-xl border ${borderColor} rounded-3xl p-6`}>
               <h4 className={`text-sm font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'} mb-3 flex items-center gap-2`}>
                 <Clock className="w-4 h-4 text-cyan-400" /> آخر الإجراءات
               </h4>
@@ -595,50 +534,32 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ============================================================ */}
         {/* ===== 2. المعاملات ===== */}
         {activeTab === 'transactions' && (
-          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-4 md:p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
-            
+          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-4 md:p-6 space-y-4`}>
             <div className="flex flex-col md:flex-row gap-3 flex-wrap">
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-500" />
-                <input type="text" placeholder="بحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pr-10 pl-4 py-2 rounded-xl ${inputBg} border ${borderColor} ${textColor} placeholder-gray-500 text-xs outline-none focus:border-[#00f3ff] transition-colors`} />
+                <input type="text" placeholder="بحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pr-10 pl-4 py-2 rounded-xl ${inputBg} border ${borderColor} ${textColor} placeholder-gray-500 text-xs outline-none focus:border-[#00f3ff]`} />
               </div>
               <div className="flex gap-2 flex-wrap">
                 <button onClick={() => setFilterType('all')} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${filterType === 'all' ? 'bg-[#00f3ff] text-slate-950 border-[#00f3ff]' : `${cardBg} border ${borderColor} ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}`}>الكل</button>
                 <button onClick={() => setFilterType('deposit')} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${filterType === 'deposit' ? 'bg-green-500 text-white border-green-500' : `${cardBg} border ${borderColor} ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}`}>إيداع</button>
                 <button onClick={() => setFilterType('withdraw')} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${filterType === 'withdraw' ? 'bg-orange-500 text-white border-orange-500' : `${cardBg} border ${borderColor} ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}`}>سحب</button>
               </div>
-              <div className="flex gap-2">
-                <select value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className={`px-3 py-2 rounded-xl text-xs ${inputBg} border ${borderColor} ${textColor} outline-none focus:border-[#00f3ff] transition-colors`}>
-                  <option value="all">كل الفترات</option>
-                  <option value="today">اليوم</option>
-                  <option value="week">آخر 7 أيام</option>
-                  <option value="month">هذا الشهر</option>
-                </select>
-              </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
-                  <tr>
-                    <th className="p-3">المعرف</th>
-                    <th className="p-3">المستخدم</th>
-                    <th className="p-3">النوع</th>
-                    <th className="p-3">المبلغ</th>
-                    <th className="p-3">الشبكة</th>
-                    <th className="p-3">الحالة</th>
-                    <th className="p-3 text-center">إجراءات</th>
-                  </tr>
+                  <tr><th className="p-3">المعرف</th><th className="p-3">المستخدم</th><th className="p-3">النوع</th><th className="p-3">المبلغ</th><th className="p-3">الشبكة</th><th className="p-3">الحالة</th><th className="p-3 text-center">إجراءات</th></tr>
                 </thead>
                 <tbody className={`divide-y ${isDarkMode ? 'divide-white/5' : 'divide-gray-200'}`}>
                   {filteredTransactions.length === 0 ? (
                     <tr><td colSpan="7" className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>لا توجد معاملات</td></tr>
                   ) : (
                     filteredTransactions.map(tx => (
-                      <tr key={tx._id} className={`hover:${isDarkMode ? 'bg-white/5' : 'bg-gray-100/50'} transition-colors`}>
+                      <tr key={tx._id} className={`hover:${isDarkMode ? 'bg-white/5' : 'bg-gray-100/50'}`}>
                         <td className="p-3 font-mono font-bold ${textColor}">{tx._id}</td>
                         <td className="p-3"><span className={`block ${textColor}`}>{tx.userName}</span><span className="text-[10px] text-cyan-400 font-mono">{tx.phone}</span></td>
                         <td className="p-3"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'deposit' ? 'bg-green-500/20 text-green-400' : 'bg-orange-500/20 text-orange-400'}`}>{tx.type === 'deposit' ? 'إيداع' : 'سحب'}</span></td>
@@ -664,14 +585,13 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ============================================================ */}
         {/* ===== 3. المستخدمين ===== */}
         {activeTab === 'users' && (
-          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-4 md:p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-4 md:p-6 space-y-4`}>
             <div className="flex flex-col md:flex-row gap-3 justify-between">
               <div className="relative flex-1">
                 <Search className="absolute right-3 top-2.5 w-4 h-4 text-gray-500" />
-                <input type="text" placeholder="بحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pr-10 pl-4 py-2 rounded-xl ${inputBg} border ${borderColor} ${textColor} placeholder-gray-500 text-xs outline-none focus:border-[#00f3ff] transition-colors`} />
+                <input type="text" placeholder="بحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full pr-10 pl-4 py-2 rounded-xl ${inputBg} border ${borderColor} ${textColor} placeholder-gray-500 text-xs outline-none focus:border-[#00f3ff]`} />
               </div>
               <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} self-center`}>إجمالي: {filteredUsers.length} مستخدم</span>
             </div>
@@ -679,21 +599,13 @@ const AdminPanel = ({ onBack, onNavigate }) => {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs">
                 <thead className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
-                  <tr>
-                    <th className="p-3">الاسم</th>
-                    <th className="p-3">رقم الهاتف</th>
-                    <th className="p-3">VIP</th>
-                    <th className="p-3">الرصيد</th>
-                    <th className="p-3">الإحالات</th>
-                    <th className="p-3">الحالة</th>
-                    <th className="p-3 text-center">إجراءات</th>
-                  </tr>
+                  <tr><th className="p-3">الاسم</th><th className="p-3">الهاتف</th><th className="p-3">VIP</th><th className="p-3">الرصيد</th><th className="p-3">الإحالات</th><th className="p-3">الحالة</th><th className="p-3 text-center">إجراءات</th></tr>
                 </thead>
                 <tbody className={`divide-y ${isDarkMode ? 'divide-white/5' : 'divide-gray-200'}`}>
                   {filteredUsers.map(u => {
                     const badge = getUserBadge(u);
                     return (
-                      <tr key={u._id} className={`hover:${isDarkMode ? 'bg-white/5' : 'bg-gray-100/50'} transition-colors`}>
+                      <tr key={u._id} className={`hover:${isDarkMode ? 'bg-white/5' : 'bg-gray-100/50'}`}>
                         <td className={`p-3 font-bold ${textColor}`}>{u.fullName} {badge && <span className="mr-1 text-sm" title={badge.label}>{badge.icon}</span>}</td>
                         <td className="p-3 font-mono text-cyan-400/80">{u.phone}</td>
                         <td className="p-3"><span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold text-[10px]">VIP {u.vipLevel}</span></td>
@@ -720,10 +632,9 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ============================================================ */}
         {/* ===== 4. التسويق ===== */}
         {activeTab === 'referrals' && (
-          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 space-y-4`}>
             <div className="flex justify-between items-center">
               <h3 className={`text-xl font-bold ${textColor} flex items-center gap-2`}><Award className="w-6 h-6 text-yellow-400" /> قائمة المسوقين</h3>
               <button onClick={() => alert('✅ تم صرف المكافآت!')} className="px-6 py-2 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(250,204,21,0.4)] hover:shadow-[0_0_30px_rgba(250,204,21,0.6)] transition-all flex items-center gap-2">
@@ -751,17 +662,16 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ============================================================ */}
         {/* ===== 5. سجل الإجراءات ===== */}
         {activeTab === 'audit' && (
-          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
+          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 space-y-4`}>
             <h3 className={`text-xl font-bold ${textColor} flex items-center gap-2`}><Clock className="w-6 h-6 text-cyan-400" /> سجل الإجراءات</h3>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {auditLogs.length === 0 ? (
                 <p className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-sm`}>لا توجد إجراءات مسجلة بعد</p>
               ) : (
                 auditLogs.map(log => (
-                  <div key={log._id || log.id} className={`p-3 rounded-xl ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100/50 border-gray-200'} border flex justify-between items-center hover:border-cyan-500/20 transition-all`}>
+                  <div key={log._id || log.id} className={`p-3 rounded-xl ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100/50 border-gray-200'} border flex justify-between items-center`}>
                     <span className={`text-sm ${textColor}`}>{log.action}</span>
                     <div className="flex items-center gap-4 text-xs text-gray-500">
                       <span>🛡️ {log.admin}</span>
@@ -774,26 +684,20 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ===== النوافذ المنبثقة (Modals) ===== */}
+        {/* ===== النوافذ المنبثقة ===== */}
         {isEditBalanceModalOpen && editBalanceUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsEditBalanceModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setIsEditBalanceModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"><XCircle className="w-5 h-5" /></button>
+              <button onClick={() => setIsEditBalanceModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"><XCircle className="w-5 h-5" /></button>
               <h3 className="text-xl font-black text-white mb-2 text-center">✏️ تعديل الرصيد</h3>
-              <p className="text-center text-sm text-gray-400 mb-4">{editBalanceUser.fullName} (VIP {editBalanceUser.vipLevel}) • الرصيد الحالي: ${editBalanceUser.balance}</p>
+              <p className="text-center text-sm text-gray-400 mb-4">{editBalanceUser.fullName} (VIP {editBalanceUser.vipLevel}) • الرصيد: ${editBalanceUser.balance}</p>
               <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-bold text-gray-400">المبلغ (استخدم + للإضافة، - للخصم)</label>
-                  <input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="مثال: 50 أو -20" className="w-full mt-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff]" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-gray-400">سبب التعديل</label>
-                  <input type="text" value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="مثال: مكافأة ترقية" className="w-full mt-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff]" />
-                </div>
+                <div><label className="text-xs font-bold text-gray-400">المبلغ (+ للإضافة، - للخصم)</label><input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} placeholder="مثال: 50 أو -20" className="w-full mt-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff]" /></div>
+                <div><label className="text-xs font-bold text-gray-400">السبب</label><input type="text" value={editReason} onChange={(e) => setEditReason(e.target.value)} placeholder="مثال: مكافأة" className="w-full mt-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 outline-none focus:border-[#00f3ff]" /></div>
               </div>
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setIsEditBalanceModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10 transition-all">إلغاء</button>
-                <button onClick={handleConfirmEditBalance} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all">تأكيد</button>
+                <button onClick={() => setIsEditBalanceModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10">إلغاء</button>
+                <button onClick={handleConfirmEditBalance} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)]">تأكيد</button>
               </div>
             </div>
           </div>
@@ -802,11 +706,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         {isUserNotificationModalOpen && selectedUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsUserNotificationModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setIsUserNotificationModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"><XCircle className="w-5 h-5" /></button>
+              <button onClick={() => setIsUserNotificationModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"><XCircle className="w-5 h-5" /></button>
               <div className="flex items-center gap-3 mb-4"><MessageSquare className="w-8 h-8 text-cyan-400" /><div><h3 className="text-xl font-black text-white">✉️ إشعار مخصص</h3><p className="text-xs text-gray-400">إلى: {selectedUser.fullName}</p></div></div>
-              <textarea value={userNotificationMessage} onChange={(e) => setUserNotificationMessage(e.target.value)} placeholder={`اكتب رسالتك...`} rows="4" className="w-full mt-1 bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none text-sm" />
+              <textarea value={userNotificationMessage} onChange={(e) => setUserNotificationMessage(e.target.value)} placeholder="اكتب رسالتك..." rows="4" className="w-full mt-1 bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none text-sm" />
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setIsUserNotificationModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10 transition-all">إلغاء</button>
+                <button onClick={() => setIsUserNotificationModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10">إلغاء</button>
                 <button onClick={handleSendUserNotificationSubmit} disabled={isProcessing} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] transition-all disabled:opacity-50 flex items-center justify-center gap-2">{isProcessing ? 'جاري...' : <><Send className="w-4 h-4" /> إرسال</>}</button>
               </div>
             </div>
@@ -816,17 +720,16 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         {isNotificationModalOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsNotificationModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setIsNotificationModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"><XCircle className="w-5 h-5" /></button>
+              <button onClick={() => setIsNotificationModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white"><XCircle className="w-5 h-5" /></button>
               <div className="flex items-center gap-3 mb-4"><Megaphone className="w-8 h-8 text-cyan-400" /><h3 className="text-xl font-black text-white">📢 إشعار جماعي</h3></div>
               <textarea value={notificationMessage} onChange={(e) => setNotificationMessage(e.target.value)} placeholder="اكتب رسالتك..." rows="4" className="w-full mt-1 bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none text-sm" />
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setIsNotificationModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10 transition-all">إلغاء</button>
+                <button onClick={() => setIsNotificationModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10">إلغاء</button>
                 <button onClick={handleSendNotification} disabled={isProcessing} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] transition-all disabled:opacity-50 flex items-center justify-center gap-2">{isProcessing ? 'جاري...' : <><Send className="w-4 h-4" /> إرسال</>}</button>
               </div>
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
