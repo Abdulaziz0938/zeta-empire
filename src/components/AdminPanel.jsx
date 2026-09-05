@@ -62,11 +62,19 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         setTransactions([]);
       }
 
-      // جلب سجل الإجراءات
-      const auditRes = await fetch(`${API_BASE}/api/admin/audit`);
-      const auditData = await auditRes.json();
-      if (auditData.success) {
-        setAuditLogs(auditData.logs);
+      // ✅ جلب سجل الإجراءات مع معالجة الأخطاء (بدون تعطيل التطبيق)
+      try {
+        const auditRes = await fetch(`${API_BASE}/api/admin/audit`);
+        const auditData = await auditRes.json();
+        if (auditData.success) {
+          setAuditLogs(auditData.logs);
+        } else {
+          console.warn('⚠️ فشل جلب سجل الإجراءات:', auditData.message);
+          setAuditLogs([]);
+        }
+      } catch (err) {
+        console.warn('⚠️ فشل جلب سجل الإجراءات (خطأ شبكة):', err.message);
+        setAuditLogs([]);
       }
 
       setLastUpdated(new Date());
@@ -75,6 +83,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       // في حالة فشل الجلب، نترك المصفوفات فارغة (لا نستخدم بيانات وهمية)
       setUsers([]);
       setTransactions([]);
+      setAuditLogs([]);
     } finally {
       setIsLoading(false);
     }
@@ -290,9 +299,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   };
 
   // ===== الشارات والتصفية =====
+  // ✅ تعديل دالة getUserBadge لاستخدام referrals من قاعدة البيانات
   const getUserBadge = (user) => {
-    if (user.referrals >= 20) return { icon: '👑', label: 'ملك التسويق' };
-    if (user.referrals >= 10) return { icon: '⭐', label: 'مسوق ماسي' };
+    const count = user.referrals || 0;
+    if (count >= 20) return { icon: '👑', label: 'ملك التسويق' };
+    if (count >= 10) return { icon: '⭐', label: 'مسوق ماسي' };
     return null;
   };
 
@@ -313,7 +324,12 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const totalDeposits = transactions.filter(t => t.type === 'deposit' && t.status === 'approved').reduce((acc, t) => acc + t.amount, 0);
   const totalWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'approved').reduce((acc, t) => acc + t.amount, 0);
   const totalFees = transactions.filter(t => t.status === 'approved').reduce((acc, t) => acc + (t.type === 'withdraw' ? t.amount * 0.05 : 0), 0);
-  const topReferrers = [...users].sort((a, b) => b.referrals - a.referrals).slice(0, 5);
+  
+  // ✅ تعديل topReferrers لاستخدام referrals من قاعدة البيانات
+  const topReferrers = [...users]
+    .filter(u => (u.referrals || 0) > 0)
+    .sort((a, b) => (b.referrals || 0) - (a.referrals || 0))
+    .slice(0, 5);
 
   const vipDistribution = [0,1,2,3,4,5,6,7].map(level => ({
     level,
@@ -458,21 +474,25 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                 أفضل 5 مسوقين
               </h3>
               <div className="space-y-2">
-                {topReferrers.map((u, idx) => (
-                  <div key={u._id || u.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
-                    <div className="flex items-center gap-3">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-400 text-slate-950' : idx === 1 ? 'bg-gray-400 text-white' : idx === 2 ? 'bg-orange-600 text-white' : 'bg-white/10 text-gray-400'}`}>{idx + 1}</span>
-                      <span className={`font-bold ${textColor}`}>{u.fullName}</span>
-                      {getUserBadge(u) && <span className="text-sm" title={getUserBadge(u).label}>{getUserBadge(u).icon}</span>}
+                {topReferrers.length === 0 ? (
+                  <p className={`text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} py-4 text-sm`}>لا يوجد مسوقون حتى الآن</p>
+                ) : (
+                  topReferrers.map((u, idx) => (
+                    <div key={u._id || u.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-400 text-slate-950' : idx === 1 ? 'bg-gray-400 text-white' : idx === 2 ? 'bg-orange-600 text-white' : 'bg-white/10 text-gray-400'}`}>{idx + 1}</span>
+                        <span className={`font-bold ${textColor}`}>{u.fullName}</span>
+                        {getUserBadge(u) && <span className="text-sm" title={getUserBadge(u).label}>{getUserBadge(u).icon}</span>}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-cyan-400 font-mono">VIP {u.vipLevel}</span>
+                        <span className="text-green-400 font-bold">{u.referrals || 0} إحالة</span>
+                        <button onClick={() => handlePromoteVip(u._id)} className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/40 transition-all">رفع</button>
+                        <button onClick={() => handleDemoteVip(u._id)} className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 text-[10px] font-bold hover:bg-red-500/40 transition-all">تخفيض</button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-cyan-400 font-mono">VIP {u.vipLevel}</span>
-                      <span className="text-green-400 font-bold">{u.referrals} إحالة</span>
-                      <button onClick={() => handlePromoteVip(u._id)} className="px-3 py-1 rounded-lg bg-cyan-500/20 text-cyan-300 text-[10px] font-bold hover:bg-cyan-500/40 transition-all">رفع</button>
-                      <button onClick={() => handleDemoteVip(u._id)} className="px-3 py-1 rounded-lg bg-red-500/20 text-red-300 text-[10px] font-bold hover:bg-red-500/40 transition-all">تخفيض</button>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
@@ -524,12 +544,16 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                 <Clock className="w-4 h-4 text-cyan-400" /> آخر الإجراءات
               </h4>
               <div className="space-y-2 max-h-40 overflow-y-auto">
-                {auditLogs.slice(0, 5).map(log => (
-                  <div key={log.id} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} border-b ${isDarkMode ? 'border-white/5' : 'border-gray-200'} pb-2 flex justify-between`}>
-                    <span>{log.action}</span>
-                    <span className="text-[10px] text-gray-500">{log.timestamp}</span>
-                  </div>
-                ))}
+                {auditLogs.length === 0 ? (
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'} text-center py-4`}>لا توجد إجراءات مسجلة بعد</p>
+                ) : (
+                  auditLogs.slice(0, 5).map(log => (
+                    <div key={log._id || log.id} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} border-b ${isDarkMode ? 'border-white/5' : 'border-gray-200'} pb-2 flex justify-between`}>
+                      <span>{log.action}</span>
+                      <span className="text-[10px] text-gray-500">{log.timestamp}</span>
+                    </div>
+                  ))
+                )}
               </div>
               <div className="mt-2 text-[10px] text-gray-500 flex justify-between">
                 <span>آخر تحديث: {lastUpdated.toLocaleTimeString('ar-EG')}</span>
@@ -628,6 +652,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                     <th className="p-3">رقم الهاتف</th>
                     <th className="p-3">VIP</th>
                     <th className="p-3">الرصيد</th>
+                    <th className="p-3">الإحالات</th>
                     <th className="p-3">الحالة</th>
                     <th className="p-3 text-center">إجراءات</th>
                   </tr>
@@ -641,6 +666,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
                         <td className="p-3 font-mono text-cyan-400/80">{u.phone}</td>
                         <td className="p-3"><span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold text-[10px]">VIP {u.vipLevel}</span></td>
                         <td className={`p-3 font-mono font-bold ${textColor}`}>${u.balance}</td>
+                        <td className="p-3 font-mono font-bold text-green-400">{u.referrals || 0}</td>
                         <td className="p-3"><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${u.status === 'نشط' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{u.status || 'نشط'}</span></td>
                         <td className="p-3">
                           <div className="flex items-center justify-center gap-1.5">
@@ -674,21 +700,24 @@ const AdminPanel = ({ onBack, onNavigate }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {users.filter(u => u.referrals > 0).sort((a,b) => b.referrals - a.referrals).map((u, idx) => (
+              {users.filter(u => (u.referrals || 0) > 0).sort((a,b) => (b.referrals || 0) - (a.referrals || 0)).map((u, idx) => (
                 <div key={u._id} className={`p-4 rounded-2xl ${isDarkMode ? 'bg-white/5 border-white/10' : 'bg-gray-100/50 border-gray-200'} border flex justify-between items-center`}>
                   <div className="flex items-center gap-3">
                     <span className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black ${idx === 0 ? 'bg-yellow-400 text-slate-950' : 'bg-cyan-500/20 text-cyan-300'}`}>{idx + 1}</span>
                     <div>
                       <p className={`font-bold ${textColor}`}>{u.fullName}</p>
-                      <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>VIP {u.vipLevel} • {u.referrals} إحالة</p>
+                      <p className={`text-[10px] ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>VIP {u.vipLevel} • {u.referrals || 0} إحالة</p>
                     </div>
                   </div>
                   <div className="text-left">
                     <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>المكافأة</p>
-                    <p className="font-bold text-green-400">${(u.referrals * 2.5).toFixed(2)}</p>
+                    <p className="font-bold text-green-400">${((u.referrals || 0) * 2.5).toFixed(2)}</p>
                   </div>
                 </div>
               ))}
+              {users.filter(u => (u.referrals || 0) > 0).length === 0 && (
+                <p className={`col-span-2 text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-sm`}>لا يوجد مسوقون حتى الآن</p>
+              )}
             </div>
           </div>
         )}
@@ -699,15 +728,19 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
             <h3 className={`text-xl font-bold ${textColor} flex items-center gap-2`}><Clock className="w-6 h-6 text-cyan-400" /> سجل الإجراءات</h3>
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {auditLogs.map(log => (
-                <div key={log.id} className={`p-3 rounded-xl ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100/50 border-gray-200'} border flex justify-between items-center hover:border-cyan-500/20 transition-all`}>
-                  <span className={`text-sm ${textColor}`}>{log.action}</span>
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    <span>🛡️ {log.admin}</span>
-                    <span>{log.timestamp}</span>
+              {auditLogs.length === 0 ? (
+                <p className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} text-sm`}>لا توجد إجراءات مسجلة بعد</p>
+              ) : (
+                auditLogs.map(log => (
+                  <div key={log._id || log.id} className={`p-3 rounded-xl ${isDarkMode ? 'bg-white/5 border-white/5' : 'bg-gray-100/50 border-gray-200'} border flex justify-between items-center hover:border-cyan-500/20 transition-all`}>
+                    <span className={`text-sm ${textColor}`}>{log.action}</span>
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span>🛡️ {log.admin}</span>
+                      <span>{log.timestamp}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}

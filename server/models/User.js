@@ -27,6 +27,8 @@ const userSchema = new mongoose.Schema({
   totalEarnings: { type: Number, default: 0 },
   referralEarnings: { type: Number, default: 0 },
 
+referrals: { type: Number, default: 0 },
+
   // إدارة المهام
   tasksCompletedToday: { type: Number, default: 0 },
   lastTaskDate: { type: Date, default: null }

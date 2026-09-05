@@ -359,6 +359,21 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
   }
 });
 
+
+
+// ===== سجل الإجراءات (للأدمن) =====
+app.get('/api/admin/audit', async (req, res) => {
+  try {
+    const AuditLog = require('./models/AuditLog');
+    const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(50);
+    res.json({ success: true, logs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+
 // ============================================================
 // ✅ الإشعارات والإدارة
 // ============================================================
