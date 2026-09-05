@@ -1,3 +1,4 @@
+// server/taskEngine.js - النسخة النهائية المعدلة
 const User = require('./models/User');
 const Transaction = require('./models/Transaction');
 const { distributeReferralCommissions } = require('./referral');
@@ -25,7 +26,7 @@ function generateDailyTasks(userDeposit, vipLevelCommission) {
   };
 }
 
-// ===== إكمال المهام وتوزيع الأرباح =====
+// ===== إكمال المهام وتوزيع الأرباح (النسخة النهائية) =====
 async function completeTasksAndDistribute(userId) {
   console.log(`📌 بدء توزيع الأرباح للمستخدم ${userId}`);
   
@@ -51,21 +52,23 @@ async function completeTasksAndDistribute(userId) {
     console.log(`📊 مستوى VIP: ${user.vipLevel}, النسبة: ${rate}%, مبلغ العقد: ${contractAmount}`);
     console.log(`💰 الربح المحسوب: ${profit}`);
 
+    // ✅ التحقق من وجود ربح (يجب أن يكون المستوى VIP أكبر من 0)
     if (profit <= 0) {
-      console.warn('⚠️ لا توجد أرباح لحسابها');
+      console.warn('⚠️ لا توجد أرباح لحسابها (تأكد من أن لديك عقد VIP نشط).');
       return { 
         success: false, 
         message: 'لا توجد أرباح لحسابها (تأكد من أن لديك عقد VIP نشط).' 
       };
     }
 
-    // ✅ التحقق من أن المهام لم تُنفذ اليوم
+    // ✅ التحقق من أن المهام لم تُنفذ اليوم بالفعل (لمنع التكرار)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     if (user.lastTaskDate) {
       const lastDate = new Date(user.lastTaskDate);
       lastDate.setHours(0, 0, 0, 0);
+      // إذا كان آخر تاريخ للمهام هو اليوم، وقد تم إكمال 5 مهام
       if (lastDate.getTime() === today.getTime() && user.tasksCompletedToday === 5) {
         console.warn('⚠️ تم إكمال المهام اليوم بالفعل');
         return { 

@@ -14,7 +14,7 @@ import FinanceModal from './components/FinanceModal.jsx';
 import LiveToastSystem from './components/LiveToastSystem.jsx';
 
 const App = () => {
-  // ✅ استعادة الجلسة من localStorage عند تحميل التطبيق
+  // ===== استعادة الجلسة من localStorage عند تحميل التطبيق =====
   const savedUser = localStorage.getItem('zeta_user');
   const initialUser = savedUser ? JSON.parse(savedUser) : null;
 
@@ -25,26 +25,39 @@ const App = () => {
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
   const [lang, setLang] = useState('ar');
 
+  // ===== دالة تسجيل الدخول (حفظ الجلسة) =====
+  const handleAuthSuccess = (userData) => {
+    setUser(userData);
+    setIsLoggedIn(true);
+    localStorage.setItem('zeta_user', JSON.stringify(userData));
+  };
 
-
-
-const handleAuthSuccess = (userData) => {
-  setUser(userData);
-  setIsLoggedIn(true);
-  localStorage.setItem('zeta_user', JSON.stringify(userData));
-  // التوكن يُحفظ بالفعل في AuthPortal
-};
-
-
-
-  // ✅ دالة تسجيل الخروج
+  // ===== دالة تسجيل الخروج =====
   const handleLogout = () => {
     setUser(null);
     setIsLoggedIn(false);
     localStorage.removeItem('zeta_user');
   };
 
-  // إذا لم يكن المستخدم مسجلاً، اعرض بوابة المصادقة
+  // ===== تحديث بيانات المستخدم من الخادم =====
+  const refreshUserData = async () => {
+    if (!user?.phone) return;
+    const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+    try {
+      const res = await fetch(`${API_BASE}/api/users/${user.phone}`);
+      const data = await res.json();
+      if (data.success) {
+        const updatedUser = data.user;
+        setUser(updatedUser);
+        localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
+        console.log('✅ تم تحديث بيانات المستخدم');
+      }
+    } catch (error) {
+      console.error('❌ فشل تحديث بيانات المستخدم:', error);
+    }
+  };
+
+  // ===== إذا لم يكن المستخدم مسجلاً، اعرض بوابة المصادقة =====
   if (!isLoggedIn || !user) {
     return <AuthPortal onAuthSuccess={handleAuthSuccess} lang={lang} setLang={setLang} />;
   }
@@ -52,17 +65,16 @@ const handleAuthSuccess = (userData) => {
   return (
     <div className="min-h-screen bg-[#030914] text-white font-sans relative pb-28" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       
-      <LiveToastSystem />
+     <LiveToastSystem user={user} />
 
-      {/* ===== نافذة الإيداع والسحب (نسخة واحدة فقط) ===== */}
       <FinanceModal 
         isOpen={isFinanceOpen} 
         onClose={() => setIsFinanceOpen(false)} 
         user={user}
         balance={user?.balance || 0}
         onTransactionSuccess={() => {
-          console.log('✅ تمت المعاملة بنجاح');
-          // يمكنك إضافة تحديث للبيانات هنا
+          console.log('✅ تمت المعاملة بنجاح، جاري تحديث البيانات...');
+          refreshUserData();
         }}
       />
 
@@ -89,7 +101,7 @@ const handleAuthSuccess = (userData) => {
               <span className="font-mono">${(user?.balance || 0).toFixed(2)}</span>
             </button>
 
-            {/* ✅ زر الأدمن يظهر فقط للمدير الفائق */}
+            {/* زر الأدمن يظهر فقط للمدير الفائق */}
             {user?.isAdmin === true && (
               <button
                 onClick={() => setActiveScreen(activeScreen === 'admin' ? 'home' : 'admin')}
@@ -104,7 +116,7 @@ const handleAuthSuccess = (userData) => {
               </button>
             )}
 
-            {/* ✅ زر تسجيل الخروج */}
+            {/* زر تسجيل الخروج */}
             <button
               onClick={handleLogout}
               className="px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all text-xs font-bold"

@@ -43,6 +43,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
     });
   };
 
+  // ===== شراء VIP (مع تحديث localStorage) =====
   const handlePurchaseVIP = async (targetLevel) => {
     if (!user) {
       alert('يرجى تسجيل الدخول أولاً');
@@ -66,6 +67,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
       const data = await res.json();
       if (data.success) {
         alert(`✅ ${data.message}`);
+        // ✅ تحديث بيانات المستخدم في localStorage
         const updatedUser = {
           ...user,
           vipLevel: data.user.vipLevel,
@@ -73,6 +75,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           totalDeposit: data.user.totalDeposit
         };
         localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
+        // ✅ إعادة تحميل الصفحة لعرض البيانات الجديدة
         window.location.reload();
       } else {
         alert(`❌ ${data.message}`);
@@ -84,6 +87,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
     }
   };
 
+  // ===== تحديث البيانات من الخادم =====
   const refreshUserData = async () => {
     if (!user?.phone) {
       alert('لا يوجد مستخدم مسجل');
@@ -171,6 +175,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-6xl mx-auto space-y-8">
+        {/* رأس الصفحة مع زر تحديث */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-2 rounded-2xl bg-white/5 border border-white/10 hover:border-[#00f3ff] text-gray-400 hover:text-white transition-all">
@@ -199,6 +204,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           </div>
         </div>
 
+        {/* شبكة البطاقات */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {vipLevels.map((vip) => {
             const isActive = vip.level === userVip;
@@ -224,6 +230,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
 
             return (
               <div key={vip.level} className={`p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300 relative overflow-hidden ${cardStyle}`}>
+                {/* شارة الحالة */}
                 <div className={`absolute top-2 right-2 bg-white/5 border rounded-full px-3 py-1 text-xs font-bold flex items-center gap-1 ${statusColor}`}>
                   {statusIcon} {statusText}
                 </div>
@@ -255,6 +262,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
                   </div>
                 </div>
 
+                {/* زر الإجراء */}
                 {isActive ? (
                   <button disabled className="w-full mt-4 py-2.5 rounded-xl bg-green-500/20 text-green-400 font-bold text-sm border border-green-500/30 cursor-not-allowed flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-4 h-4" /> {t.activeBadge}
@@ -281,6 +289,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           })}
         </div>
 
+        {/* حاسبة العائد */}
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-2xl border border-[#00f3ff]/20 rounded-3xl p-6 shadow-[0_0_25px_rgba(0,243,255,0.1)]">
           <div className="flex items-center gap-3 mb-4">
             <Calculator className="w-6 h-6 text-cyan-400" />
@@ -321,6 +330,7 @@ const VIPOverview = ({ user, lang = 'ar', onBack }) => {
           )}
         </div>
 
+        {/* زر الرجوع */}
         <div className="text-center">
           <button onClick={onBack} className="px-8 py-3 rounded-2xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:border-[#00f3ff] transition-all font-bold text-sm">
             {t.backBtn}

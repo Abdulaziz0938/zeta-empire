@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 const AdminPanel = ({ onBack, onNavigate }) => {
+  // ===== الحالات العامة =====
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -37,14 +38,16 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  // ===== جلب البيانات =====
+  // ===== جلب البيانات الحقيقية من الخادم =====
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      // جلب المستخدمين
       const usersRes = await fetch(`${API_BASE}/api/users`);
       const usersData = await usersRes.json();
       if (usersData.success) setUsers(usersData.users);
 
+      // جلب المعاملات
       const txsRes = await fetch(`${API_BASE}/api/transactions`);
       const txsData = await txsRes.json();
       if (txsData.success) setTransactions(txsData.transactions);
@@ -57,6 +60,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
+  // ===== تحميل البيانات عند تحميل الصفحة =====
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
@@ -64,59 +68,50 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   }, []);
 
   // ============================================================
-  // ✅ دوال الإجراءات (مع إصلاح استخدام _id)
+  // ✅ دوال الإجراءات (مع تحديث واجهة المستخدم فوراً)
   // ============================================================
 
+  // ✅ قبول طلب
+  const handleApprove = async (txId) => {
+    if (!confirm('✅ تأكيد قبول الطلب؟')) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/approve/${txId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
 
+      if (data.success) {
+        alert('✅ تم قبول الطلب بنجاح');
 
+        // تحديث حالة المعاملة محلياً
+        setTransactions(prev => prev.map(tx => 
+          tx._id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
+        ));
 
-
-// ✅ قبول طلب (مع تحديث الجلسة)
-const handleApprove = async (txId) => {
-  if (!confirm('✅ تأكيد قبول الطلب؟')) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/admin/approve/${txId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      alert('✅ تم قبول الطلب بنجاح');
-
-      // تحديث حالة المعاملة محلياً
-      setTransactions(prev => prev.map(tx => 
-        tx._id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
-      ));
-
-      // ✅ تحديث بيانات المستخدم في localStorage
-      if (data.user) {
-        const currentUser = JSON.parse(localStorage.getItem('zeta_user') || '{}');
-        if (currentUser._id === data.user._id) {
-          localStorage.setItem('zeta_user', JSON.stringify(data.user));
+        // تحديث بيانات المستخدم في localStorage (إذا كانت المعاملة خاصة بالمستخدم الحالي)
+        if (data.user) {
+          const currentUser = JSON.parse(localStorage.getItem('zeta_user') || '{}');
+          if (currentUser._id === data.user._id) {
+            localStorage.setItem('zeta_user', JSON.stringify(data.user));
+          }
         }
+
+        setAuditLogs(prev => [{ 
+          id: Date.now(), 
+          admin: 'المدير الفائق', 
+          action: `قبول طلب #${txId}`, 
+          timestamp: new Date().toLocaleString('ar-EG') 
+        }, ...prev]);
+
+        fetchData(); // تحديث شامل
+      } else {
+        alert('❌ ' + data.message);
       }
-
-      setAuditLogs(prev => [{ 
-        id: Date.now(), 
-        admin: 'المدير الفائق', 
-        action: `قبول طلب #${txId}`, 
-        timestamp: new Date().toLocaleString('ar-EG') 
-      }, ...prev]);
-
-      fetchData();
-    } else {
-      alert('❌ ' + data.message);
+    } catch (error) {
+      alert('❌ خطأ في الاتصال بالخادم');
     }
-  } catch (error) {
-    alert('❌ خطأ في الاتصال بالخادم');
-  }
-};
-
-
-
-
-
+  };
 
   // ✅ رفض طلب
   const handleReject = async (txId) => {
@@ -127,12 +122,18 @@ const handleApprove = async (txId) => {
         headers: { 'Content-Type': 'application/json' }
       });
       const data = await res.json();
+
       if (data.success) {
         alert('❌ تم رفض الطلب');
         setTransactions(prev => prev.map(tx => 
           tx._id === txId ? { ...tx, status: 'rejected', adminAction: 'تم الرفض بواسطة المدير' } : tx
         ));
-        setAuditLogs(prev => [{ id: Date.now(), admin: 'المدير الفائق', action: `رفض طلب #${txId}`, timestamp: new Date().toLocaleString('ar-EG') }, ...prev]);
+        setAuditLogs(prev => [{ 
+          id: Date.now(), 
+          admin: 'المدير الفائق', 
+          action: `رفض طلب #${txId}`, 
+          timestamp: new Date().toLocaleString('ar-EG') 
+        }, ...prev]);
         fetchData();
       } else {
         alert('❌ ' + data.message);
@@ -142,7 +143,7 @@ const handleApprove = async (txId) => {
     }
   };
 
-  // ✅ رفع المستوى
+  // ✅ رفع مستوى VIP
   const handlePromoteVip = async (userId) => {
     if (!confirm('تأكيد رفع مستوى VIP؟')) return;
     try {
@@ -157,7 +158,7 @@ const handleApprove = async (txId) => {
     }
   };
 
-  // ✅ تخفيض المستوى
+  // ✅ تخفيض مستوى VIP
   const handleDemoteVip = async (userId) => {
     if (!confirm('⚠️ تأكيد تخفيض مستوى VIP؟')) return;
     try {
@@ -294,13 +295,12 @@ const handleApprove = async (txId) => {
   const totalFees = transactions.filter(t => t.status === 'approved').reduce((acc, t) => acc + (t.type === 'withdraw' ? t.amount * 0.05 : 0), 0);
   const topReferrers = [...users].sort((a, b) => b.referrals - a.referrals).slice(0, 5);
 
-  // ✅ إحصائيات متقدمة
   const vipDistribution = [0,1,2,3,4,5,6,7].map(level => ({
     level,
     count: users.filter(u => u.vipLevel === level).length
   }));
 
-  // ✅ بيانات الرسم البياني (آخر 7 أيام)
+  // ===== بيانات الرسم البياني (آخر 7 أيام) =====
   const getLast7Days = () => {
     const days = [];
     for (let i = 6; i >= 0; i--) {
@@ -361,13 +361,13 @@ const handleApprove = async (txId) => {
           </div>
 
           <div className="flex items-center gap-3 flex-wrap justify-center">
+            <button onClick={onBack} className="px-4 py-2 rounded-2xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold text-xs hover:bg-green-500/40 transition-all flex items-center gap-2">
+              <Home className="w-4 h-4" /> العودة للرئيسية
+            </button>
+
             <button onClick={() => setIsDarkMode(!isDarkMode)} className={`px-4 py-2 rounded-2xl border transition-all flex items-center gap-2 text-xs font-bold ${isDarkMode ? 'bg-white/10 border-white/20 text-yellow-300 hover:bg-white/20' : 'bg-gray-200/80 border-gray-300 text-gray-700 hover:bg-gray-300'}`}>
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               <span>{isDarkMode ? '☀️ نهاري' : '🌙 ليلي'}</span>
-            </button>
-
-            <button onClick={onBack} className="px-4 py-2 rounded-2xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold text-xs hover:bg-green-500/40 transition-all flex items-center gap-2">
-              <Home className="w-4 h-4" /> العودة للرئيسية
             </button>
 
             <button onClick={() => setIsNotificationModalOpen(true)} className="px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(0,243,255,0.3)] hover:shadow-[0_0_25px_rgba(0,243,255,0.6)] transition-all flex items-center gap-2">

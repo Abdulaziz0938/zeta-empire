@@ -12,7 +12,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
       resetTime: "تجديد المهام خلال",
       startTask: "تنفيذ المهمة",
       processing: "جاري المعالجة...",
-      allDone: "أحسنت! أكملت جميع المهام.",
+      allDone: "أحسنت! أكملت جميع مهام اليوم.",
       earned: "الربح الصافي المستلم",
       taskPrice: "قيمة العقد",
       commissionEarned: "ربح المهمة",
@@ -49,7 +49,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     }
   }[lang];
 
-  // ✅ حالات الصفحة (مرة واحدة فقط)
+  // ===== حالات الصفحة =====
   const [completedCount, setCompletedCount] = useState(user?.tasksCompletedToday || 0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTaskIndex, setActiveTaskIndex] = useState(null);
@@ -58,7 +58,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
   const [showRenewMessage, setShowRenewMessage] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  // ✅ تعريف مستويات VIP مع مبلغ العقد
+  // ===== تعريف مستويات VIP مع مبلغ العقد =====
   const vipLevels = [
     { level: 0, commission: 0, contractAmount: 0 },
     { level: 1, commission: 4.0, contractAmount: 50 },
@@ -77,7 +77,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
   const totalProfit = contractAmount * (currentRate / 100);
   const lockedAmount = contractAmount * 0.98;
 
-  // ===== حساب تقسيم المهام =====
+  // ===== حساب تقسيم المهام (98% من مبلغ العقد) =====
   useEffect(() => {
     if (contractAmount === 0) { setTasks([]); return; }
     const capital = contractAmount * 0.98;
@@ -108,13 +108,15 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // ===== تنفيذ المهمة (مع منع التكرار) =====
+  // ===== تنفيذ المهمة =====
   const handleExecuteTask = async (index) => {
+    // منع الضغط المتكرر
     if (isProcessing || index !== completedCount) return;
+    
     setIsProcessing(true);
     setActiveTaskIndex(index);
 
-    // محاكاة تنفيذ المهمة
+    // محاكاة تنفيذ المهمة (تأخير 2 ثانية)
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const newCompletedCount = completedCount + 1;
@@ -122,6 +124,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     setIsProcessing(false);
     setActiveTaskIndex(null);
 
+    // ===== إذا تم إكمال جميع المهام الخمس =====
     if (newCompletedCount === 5) {
       setIsProcessing(true);
       try {
@@ -134,7 +137,10 @@ const WorkPage = ({ user, lang = 'ar' }) => {
         if (data.success) {
           console.log('✅ تم توزيع الأرباح:', data);
           setShowRenewMessage(true);
+          // إخفاء الرسالة بعد 6 ثوانٍ
           setTimeout(() => setShowRenewMessage(false), 6000);
+          // تحديث بيانات المستخدم (يمكن جلبها من الخادم)
+          // يمكنك إضافة تحديث الرصيد هنا إذا لزم الأمر
         } else {
           console.error('❌ فشل توزيع الأرباح:', data.message);
           alert('❌ ' + data.message);
@@ -151,6 +157,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-5xl mx-auto space-y-8">
+        {/* الهيدر */}
         <div className="text-center">
           <h1 className="text-3xl md:text-5xl font-black bg-gradient-to-r from-white via-cyan-300 to-cyan-500 bg-clip-text text-transparent">
             {t.title}
@@ -158,6 +165,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           <p className="text-cyan-200/70">{t.subtitle}</p>
         </div>
 
+        {/* رسالة تجديد العقد */}
         {showRenewMessage && (
           <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center">
             <RotateCcw className="w-12 h-12 text-green-400 mx-auto" />
@@ -169,6 +177,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           </div>
         )}
 
+        {/* بطاقات الحالة */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/30 rounded-3xl p-6 flex justify-between">
             <div>
@@ -193,6 +202,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           </div>
         </div>
 
+        {/* مبلغ العقد المحجوز */}
         {contractAmount > 0 && (
           <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 flex justify-between">
             <span className="text-sm text-gray-400">{t.contractAmount}:</span>
@@ -200,6 +210,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           </div>
         )}
 
+        {/* شريط التقدم */}
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4">
           <div className="flex justify-between text-sm">
             <span className="text-cyan-200">{t.completedTasks}</span>
@@ -213,10 +224,11 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           </div>
         </div>
 
+        {/* المهام */}
         {contractAmount === 0 || vipLevel === 0 ? (
           <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
             <DollarSign className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 font-bold text-lg">💰 لا توجد عقود مفعلة</p>
+            <p className="text-gray-400 font-bold text-lg">{t.noContract}</p>
             <p className="text-gray-500 text-sm mt-2">
               {vipLevel === 0 ? t.buyVipFirst : t.depositFirst}
             </p>
@@ -299,6 +311,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           </div>
         )}
 
+        {/* رسالة الإتمام */}
         {completedCount === 5 && !showRenewMessage && (
           <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center">
             <ShieldCheck className="w-16 h-16 text-green-400 mx-auto" />

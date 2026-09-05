@@ -1,11 +1,11 @@
-// server/index.js - ZETA EMPIRE Backend (نسخة كاملة ومحدثة)
+// server/index.js - النسخة النهائية المعدلة
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
+const Notification = require('./models/Notification');
 const User = require('./models/User');
 const Transaction = require('./models/Transaction');
 const AuditLog = require('./models/AuditLog');
@@ -174,23 +174,29 @@ app.get('/api/transactions/user/:userId', async (req, res) => {
 // ✅ الإشعارات
 // ============================================================
 
+
+
+
+
 app.get('/api/notifications', async (req, res) => {
   try {
-    const txs = await Transaction.find({ status: 'approved' }).sort({ createdAt: -1 }).limit(10);
-    const notifications = txs.map(tx => ({
-      id: tx._id,
-      userName: tx.userName,
-      type: tx.type,
-      amount: tx.amount,
-      network: tx.network,
-      createdAt: tx.createdAt,
-      message: tx.type === 'deposit' ? `تم إيداع $${tx.amount}` : `تم سحب $${tx.amount}`
-    }));
+    // جلب آخر 10 إشعارات (عامة + الخاصة بالمستخدم إذا كان مسجلاً)
+    const userId = req.query.userId;
+    let filter = { targetUserId: null };
+    if (userId) {
+      filter = { $or: [{ targetUserId: null }, { targetUserId: userId }] };
+    }
+    const notifications = await Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(10);
     res.json({ success: true, notifications });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
+
 
 // ============================================================
 // ✅ إدارة الأدمن
@@ -256,7 +262,7 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
 });
 
 // ============================================================
-// ✅ قبول ورفض الطلبات (مع تحديث بيانات المستخدم)
+// ✅ قبول ورفض الطلبات (مع تحديث الرصيد ومنع التكرار)
 // ============================================================
 
 app.put('/api/admin/approve/:txId', async (req, res) => {
@@ -357,37 +363,68 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
 // ✅ الإشعارات والإدارة
 // ============================================================
 
+
+
+
 app.post('/api/admin/notify/:userId', async (req, res) => {
   const { message } = req.body;
+  if (!message || !message.trim()) {
+    return res.status(400).json({ success: false, message: 'الرجاء كتابة رسالة' });
+  }
   try {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+
+    // حفظ الإشعار للمستخدم المحدد
+    const notification = new Notification({
+      message: message.trim(),
+      type: 'info',
+      sender: 'المدير الفائق',
+      targetUserId: user._id
+    });
+    await notification.save();
+
     await saveAuditLog('المدير الفائق', `إشعار مخصص إلى ${user.fullName}`, { message });
-    res.json({ success: true, message: 'تم إرسال الإشعار' });
+
+    res.json({ success: true, message: 'تم إرسال الإشعار للمستخدم' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
+
+
+
+
+
 
 app.post('/api/admin/notify-all', async (req, res) => {
   const { message } = req.body;
+  if (!message || !message.trim()) {
+    return res.status(400).json({ success: false, message: 'الرجاء كتابة رسالة' });
+  }
   try {
-    const users = await User.find();
-    await saveAuditLog('المدير الفائق', 'إشعار جماعي', { count: users.length, message });
-    res.json({ success: true, message: `تم الإرسال لـ ${users.length} مستخدم` });
+    // حفظ الإشعار في قاعدة البيانات
+    const notification = new Notification({
+      message: message.trim(),
+      type: 'info',
+      sender: 'المدير الفائق',
+      targetUserId: null // للجميع
+    });
+    await notification.save();
+
+    // تسجيل في سجل التدقيق
+    await saveAuditLog('المدير الفائق', 'إرسال إشعار جماعي', { message, count: 1 });
+
+    res.json({ success: true, message: 'تم إرسال الإشعار لجميع المستخدمين' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-app.get('/api/admin/audit', async (req, res) => {
-  try {
-    const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(100);
-    res.json({ success: true, logs });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+
+
 
 // ============================================================
 // ✅ شراء VIP (يدوي)
