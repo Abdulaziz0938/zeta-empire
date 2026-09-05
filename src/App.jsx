@@ -32,9 +32,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-[#030914] text-white font-sans relative pb-28" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      
       <LiveToastSystem user={user} />
-
       <FinanceModal 
         key={isFinanceOpen ? financeTab : 'closed'}
         isOpen={isFinanceOpen} 

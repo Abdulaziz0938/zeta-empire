@@ -55,15 +55,10 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
     return true;
   };
 
-  // ✅ دالة تسجيل الدخول الحقيقية + تحديث بيانات المُحيل بعد التسجيل
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
     setIsLoading(true);
-
-    // ✅ حفظ كود الإحالة قبل تسجيل الدخول (للتسجيل)
-    const referralCode = formData.referralCode;
-
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const payload = isLogin 
@@ -73,50 +68,17 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
             phone: formData.phone,
             password: formData.password,
             withdrawPin: formData.withdrawPin.join(''),
-            referralCode: referralCode,  // ← إرسال كود الإحالة
+            referralCode: formData.referralCode,
             inviteCode: 'ZETA' + Math.floor(1000 + Math.random() * 9000)
           };
-
       const res = await fetch(`${API_BASE}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-
       const data = await res.json();
-
       if (data.success) {
-        // ✅ تسجيل الدخول أو التسجيل ناجح
-        const userData = data.user;
-        
-        // ✅ إذا كان تسجيل حساب جديد وكان هناك كود إحالة، نحدث بيانات المُحيل في localStorage
-        if (!isLogin && referralCode) {
-          // نحاول جلب بيانات المُحيل المحدثة من الخادم
-          try {
-            // نبحث عن المستخدم المُحيل عن طريق رقم هاتفه (أو يمكن تخزينه في localStorage)
-            // لكن الطريقة الأسهل: بعد التسجيل، نجلب بيانات المستخدم الحالي من الخادم
-            // حيث أن بيانات المُحيل قد تم تحديثها في قاعدة البيانات
-            // نقوم بتحديث localStorage للمستخدم الحالي (المُحيل) إذا كان مسجلاً بالفعل
-            const currentUser = JSON.parse(localStorage.getItem('zeta_user'));
-            if (currentUser) {
-              // نجلب بيانات المستخدم الحالي من الخادم للتحديث
-              const refreshRes = await fetch(`${API_BASE}/api/users/${currentUser.phone}`);
-              const refreshData = await refreshRes.json();
-              if (refreshData.success) {
-                const updatedUser = refreshData.user;
-                localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
-                // نحدث حالة المستخدم في التطبيق (إذا كانت onAuthSuccess تستقبل دالة تحديث)
-                // يمكننا استدعاء onAuthSuccess مرة أخرى مع البيانات المحدثة
-                onAuthSuccess(updatedUser);
-              }
-            }
-          } catch (refreshError) {
-            console.warn('⚠️ تعذر تحديث بيانات المُحيل:', refreshError);
-          }
-        }
-
-        // ✅ تسجيل الدخول العادي
-        onAuthSuccess(userData);
+        onAuthSuccess(data.user);
         alert(isLogin ? '✅ تم تسجيل الدخول بنجاح!' : '✅ تم إنشاء الحساب بنجاح!');
       } else {
         alert('❌ ' + (data.message || 'حدث خطأ غير معروف'));

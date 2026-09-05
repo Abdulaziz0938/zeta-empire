@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const ZetaContext = createContext();
 
@@ -6,7 +6,6 @@ export const ZetaProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
-  const intervalRef = useRef(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('zeta_user');
@@ -23,27 +22,6 @@ export const ZetaProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // تحديث دوري احتياطي (كل 15 ثانية)
-  useEffect(() => {
-    if (isLoggedIn && user?.phone) {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      intervalRef.current = setInterval(async () => {
-        await refreshUser();
-      }, 15000);
-    } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    }
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isLoggedIn, user?.phone]);
-
   const login = (userData) => {
     setUser(userData);
     setIsLoggedIn(true);
@@ -54,27 +32,10 @@ export const ZetaProvider = ({ children }) => {
     setUser(null);
     setIsLoggedIn(false);
     localStorage.removeItem('zeta_user');
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
   };
 
-  // ✅ تحديث فوري باستخدام بيانات من الخادم (بدون انتظار API)
-  const updateUserDirectly = (userData) => {
-    if (!userData) return;
-    const updatedUser = { ...user, ...userData };
-    setUser(updatedUser);
-    localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
-    console.log('⚡ تحديث فوري للمستخدم:', updatedUser.fullName, 'الرصيد:', updatedUser.balance);
-  };
-
-  // ✅ تحديث بالاتصال بالخادم (دوري أو يدوي)
   const refreshUser = async () => {
-    if (!user?.phone) {
-      console.warn('⚠️ لا يوجد مستخدم لتحديثه');
-      return null;
-    }
+    if (!user?.phone) return null;
     const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
     try {
       const res = await fetch(`${API_BASE}/api/users/${user.phone}`);
@@ -83,7 +44,6 @@ export const ZetaProvider = ({ children }) => {
         const updatedUser = data.user;
         setUser(updatedUser);
         localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
-        console.log('✅ تم تحديث بيانات المستخدم (من الخادم):', updatedUser.fullName, 'الرصيد:', updatedUser.balance);
         return updatedUser;
       }
     } catch (error) {
@@ -106,8 +66,7 @@ export const ZetaProvider = ({ children }) => {
     login,
     logout,
     refreshUser,
-    updateUser,
-    updateUserDirectly // ✅ دالة جديدة للتحديث الفوري
+    updateUser
   };
 
   return (
