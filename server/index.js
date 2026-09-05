@@ -25,7 +25,6 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('✅ تم الاتصال بقاعدة البيانات MongoDB'))
 .catch(err => console.error('❌ فشل الاتصال بقاعدة البيانات:', err));
 
-// ===== دالة حفظ سجل الإجراءات =====
 async function saveAuditLog(admin, action, details = {}) {
   try {
     const log = new AuditLog({ admin, action, details, timestamp: new Date() });
@@ -35,28 +34,20 @@ async function saveAuditLog(admin, action, details = {}) {
   }
 }
 
-// ===== منع تكرار المعاملات =====
 const processedTransactions = new Set();
 
-// ===== دالة التحقق من صلاحية السحب (وقت + يوم) =====
 function isWithdrawTimeAllowed() {
   const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = الأحد
+  const dayOfWeek = now.getDay();
   const hours = now.getHours();
   const minutes = now.getMinutes();
   const currentTime = hours + minutes / 60;
-
   if (dayOfWeek === 0) return false;
   if (currentTime >= 12 && currentTime < 16) return true;
   return false;
 }
 
-// ===== قائمة مبالغ السحب المسموحة (لحماية الخادم من التلاعب) =====
 const ALLOWED_WITHDRAW_AMOUNTS = [14, 25, 50, 100, 200, 500, 1000];
-
-// ============================================================
-// ✅ واجهات API الأساسية
-// ============================================================
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'ZETA EMPIRE Backend is running!' });
@@ -96,10 +87,6 @@ app.get('/api/team/:userId', async (req, res) => {
   }
 });
 
-// ============================================================
-// ✅ المصادقة (مع bcrypt و JWT)
-// ============================================================
-
 app.post('/api/auth/login', async (req, res) => {
   const { phone, password } = req.body;
   try {
@@ -121,10 +108,8 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const existingUser = await User.findOne({ phone: userData.phone });
     if (existingUser) return res.status(400).json({ success: false, message: 'رقم الهاتف مسجل بالفعل' });
-    
     const newUser = new User(userData);
     await newUser.save();
-
     if (userData.referralCode) {
       const referrer = await User.findOne({ inviteCode: userData.referralCode });
       if (referrer) {
@@ -132,7 +117,6 @@ app.post('/api/auth/register', async (req, res) => {
         await referrer.save();
       }
     }
-
     const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
     const userDataResponse = newUser.toObject();
     delete userDataResponse.password;
@@ -141,10 +125,6 @@ app.post('/api/auth/register', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-// ============================================================
-// ✅ المهام اليومية
-// ============================================================
 
 app.post('/api/tasks/complete', async (req, res) => {
   const { userId } = req.body;
@@ -161,15 +141,10 @@ app.post('/api/tasks/complete', async (req, res) => {
   }
 });
 
-// ============================================================
-// ✅ المعاملات (مع منع السحب خارج الوقت والمبالغ غير المسموحة)
-// ============================================================
-
 app.post('/api/transactions', async (req, res) => {
   try {
     const { userId, userName, phone, type, amount, network, address, txHash, fee, note } = req.body;
 
-    // 1. منع طلبات السحب خارج الوقت المسموح
     if (type === 'withdraw' && !isWithdrawTimeAllowed()) {
       return res.status(403).json({
         success: false,
@@ -177,7 +152,6 @@ app.post('/api/transactions', async (req, res) => {
       });
     }
 
-    // 2. ✅ التحقق من أن مبلغ السحب من ضمن القائمة المسموحة (لمنع التلاعب)
     if (type === 'withdraw' && !ALLOWED_WITHDRAW_AMOUNTS.includes(Number(amount))) {
       return res.status(400).json({
         success: false,
@@ -224,10 +198,6 @@ app.get('/api/transactions/user/:userId', async (req, res) => {
   }
 });
 
-// ============================================================
-// ✅ الإشعارات
-// ============================================================
-
 app.get('/api/notifications', async (req, res) => {
   try {
     const userId = req.query.userId;
@@ -244,10 +214,6 @@ app.get('/api/notifications', async (req, res) => {
   }
 });
 
-// ============================================================
-// ✅ سجل الإجراءات (للأدمن)
-// ============================================================
-
 app.get('/api/admin/audit', async (req, res) => {
   try {
     const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(50);
@@ -256,10 +222,6 @@ app.get('/api/admin/audit', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-// ============================================================
-// ✅ إدارة الأدمن
-// ============================================================
 
 app.put('/api/admin/promote/:userId', async (req, res) => {
   try {
@@ -320,27 +282,19 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
   }
 });
 
-// ============================================================
-// ✅ قبول ورفض الطلبات (مع منع التكرار)
-// ============================================================
-
 app.put('/api/admin/approve/:txId', async (req, res) => {
   const txId = req.params.txId;
-
   if (processedTransactions.has(txId)) {
     return res.status(409).json({ success: false, message: 'هذه المعاملة تمت معالجتها مسبقاً' });
   }
-
   try {
     const tx = await Transaction.findById(txId);
     if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
     if (tx.status !== 'pending') {
       return res.status(400).json({ success: false, message: `المعاملة بحالة ${tx.status} ولا يمكن معالجتها` });
     }
-
     const user = await User.findById(tx.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-
     if (tx.type === 'deposit') {
       user.balance = (Number(user.balance) || 0) + tx.amount;
       user.totalDeposit = (Number(user.totalDeposit) || 0) + tx.amount;
@@ -351,25 +305,19 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
       user.balance = (Number(user.balance) || 0) - tx.amount;
       user.totalWithdrawal = (Number(user.totalWithdrawal) || 0) + tx.amount;
     }
-
     await user.save();
-
     tx.status = 'approved';
     tx.adminAction = 'تم القبول بواسطة المدير';
     await tx.save();
-
     processedTransactions.add(txId);
     setTimeout(() => processedTransactions.delete(txId), 10 * 60 * 1000);
-
     await saveAuditLog('المدير الفائق', `قبول طلب ${tx.type} #${txId}`, {
       userId: user._id,
       amount: tx.amount,
       newBalance: user.balance
     });
-
     const userData = user.toObject();
     delete userData.password;
-
     res.json({
       success: true,
       message: 'تم قبول المعاملة بنجاح',
@@ -383,30 +331,24 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
 
 app.put('/api/admin/reject/:txId', async (req, res) => {
   const txId = req.params.txId;
-
   if (processedTransactions.has(txId)) {
     return res.status(409).json({ success: false, message: 'هذه المعاملة تمت معالجتها مسبقاً' });
   }
-
   try {
     const tx = await Transaction.findById(txId);
     if (!tx) return res.status(404).json({ success: false, message: 'المعاملة غير موجودة' });
     if (tx.status !== 'pending') {
       return res.status(400).json({ success: false, message: `المعاملة بحالة ${tx.status} ولا يمكن معالجتها` });
     }
-
     tx.status = 'rejected';
     tx.adminAction = 'تم الرفض بواسطة المدير';
     await tx.save();
-
     processedTransactions.add(txId);
     setTimeout(() => processedTransactions.delete(txId), 10 * 60 * 1000);
-
     await saveAuditLog('المدير الفائق', `رفض طلب ${tx.type} #${txId}`, {
       userId: tx.userId,
       amount: tx.amount
     });
-
     res.json({
       success: true,
       message: 'تم رفض المعاملة',
@@ -417,10 +359,6 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
   }
 });
 
-// ============================================================
-// ✅ الإشعارات والإدارة
-// ============================================================
-
 app.post('/api/admin/notify/:userId', async (req, res) => {
   const { message } = req.body;
   if (!message || !message.trim()) {
@@ -429,7 +367,6 @@ app.post('/api/admin/notify/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-
     const notification = new Notification({
       message: message.trim(),
       type: 'info',
@@ -437,9 +374,7 @@ app.post('/api/admin/notify/:userId', async (req, res) => {
       targetUserId: user._id
     });
     await notification.save();
-
     await saveAuditLog('المدير الفائق', `إشعار مخصص إلى ${user.fullName}`, { message });
-
     res.json({ success: true, message: 'تم إرسال الإشعار للمستخدم' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -467,9 +402,8 @@ app.post('/api/admin/notify-all', async (req, res) => {
 });
 
 // ============================================================
-// ✅ شراء VIP (نسخة آمنة ذرية مع منع خفض المستوى)
+// ✅ شراء VIP (نسخة معدلة - لا تزيد totalDeposit)
 // ============================================================
-
 app.post('/api/vip/purchase', async (req, res) => {
   const { userId, vipLevel } = req.body;
   try {
@@ -480,6 +414,7 @@ app.post('/api/vip/purchase', async (req, res) => {
 
     const totalCost = vipPrices[vipLevel];
 
+    // ✅ عملية ذرية: خصم الرصيد ورفع المستوى فقط (بدون زيادة totalDeposit)
     const user = await User.findOneAndUpdate(
       {
         _id: userId,
@@ -488,8 +423,8 @@ app.post('/api/vip/purchase', async (req, res) => {
       },
       {
         $inc: {
-          balance: -totalCost,
-          totalDeposit: totalCost
+          balance: -totalCost
+          // ✅ تم إزالة totalDeposit من التحديث
         },
         $set: { vipLevel: vipLevel }
       },
@@ -516,16 +451,17 @@ app.post('/api/vip/purchase', async (req, res) => {
       return res.status(400).json({ success: false, message: 'حدث خطأ غير متوقع' });
     }
 
+    // تسجيل المعاملة كمرجع (نوعها 'purchase' وليس 'deposit')
     const transaction = new Transaction({
       userId: user._id,
       userName: user.fullName,
       phone: user.phone,
-      type: 'deposit',
+      type: 'purchase', // ✅ نوع مميز لشراء VIP
       amount: totalCost,
       network: 'SYSTEM',
       fee: 0,
       status: 'approved',
-      note: `شراء VIP ${vipLevel} (بخصم $${totalCost})`
+      note: `شراء VIP ${vipLevel} (بخصم $${totalCost} من الرصيد)`
     });
     await transaction.save();
 
@@ -538,7 +474,7 @@ app.post('/api/vip/purchase', async (req, res) => {
       user: {
         vipLevel: userData.vipLevel,
         balance: userData.balance,
-        totalDeposit: userData.totalDeposit
+        totalDeposit: userData.totalDeposit // لم تتغير
       }
     });
 
@@ -547,10 +483,6 @@ app.post('/api/vip/purchase', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-// ============================================================
-// ✅ تشغيل الخادم
-// ============================================================
 
 app.listen(PORT, () => {
   console.log(`🚀 خادم ZETA EMPIRE يعمل على المنفذ ${PORT}`);
