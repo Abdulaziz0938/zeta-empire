@@ -83,7 +83,7 @@ app.post('/api/tasks/complete', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// ===== المعاملات =====
+// ===== المعاملات (بما فيها رقم المعاملة) =====
 app.post('/api/transactions', async (req, res) => {
   try {
     const { userId, userName, phone, type, amount, network, address, txHash, fee, note } = req.body;
