@@ -14,33 +14,28 @@ import FinanceModal from './components/FinanceModal.jsx';
 import LiveToastSystem from './components/LiveToastSystem.jsx';
 
 const App = () => {
-  // ===== استعادة الجلسة من localStorage عند تحميل التطبيق =====
   const savedUser = localStorage.getItem('zeta_user');
   const initialUser = savedUser ? JSON.parse(savedUser) : null;
 
   const [isLoggedIn, setIsLoggedIn] = useState(!!initialUser);
   const [user, setUser] = useState(initialUser);
-
   const [activeScreen, setActiveScreen] = useState('home');
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
-  const [financeTab, setFinanceTab] = useState('deposit'); // ✅ لتحديد التبويب الافتراضي
+  const [financeTab, setFinanceTab] = useState('deposit');
   const [lang, setLang] = useState('ar');
 
-  // ===== دالة تسجيل الدخول (حفظ الجلسة) =====
   const handleAuthSuccess = (userData) => {
     setUser(userData);
     setIsLoggedIn(true);
     localStorage.setItem('zeta_user', JSON.stringify(userData));
   };
 
-  // ===== دالة تسجيل الخروج =====
   const handleLogout = () => {
     setUser(null);
     setIsLoggedIn(false);
     localStorage.removeItem('zeta_user');
   };
 
-  // ===== تحديث بيانات المستخدم من الخادم =====
   const refreshUserData = async () => {
     if (!user?.phone) return;
     const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
@@ -51,19 +46,16 @@ const App = () => {
         const updatedUser = data.user;
         setUser(updatedUser);
         localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
-        console.log('✅ تم تحديث بيانات المستخدم');
       }
     } catch (error) {
       console.error('❌ فشل تحديث بيانات المستخدم:', error);
     }
   };
 
-  // ===== إذا لم يكن المستخدم مسجلاً، اعرض بوابة المصادقة =====
   if (!isLoggedIn || !user) {
     return <AuthPortal onAuthSuccess={handleAuthSuccess} lang={lang} setLang={setLang} />;
   }
 
-  // ===== دوال فتح النافذة مع تحديد التبويب =====
   const openFinance = (tab = 'deposit') => {
     setFinanceTab(tab);
     setIsFinanceOpen(true);
@@ -74,16 +66,15 @@ const App = () => {
       
       <LiveToastSystem user={user} />
 
+      {/* ✅ إضافة key لإعادة تهيئة النافذة عند تغيير التبويب */}
       <FinanceModal 
+        key={isFinanceOpen ? financeTab : 'closed'} 
         isOpen={isFinanceOpen} 
         onClose={() => setIsFinanceOpen(false)} 
         user={user}
         balance={user?.balance || 0}
-        initialTab={financeTab} // ✅ تمرير التبويب المطلوب
-        onTransactionSuccess={() => {
-          console.log('✅ تمت المعاملة بنجاح، جاري تحديث البيانات...');
-          refreshUserData();
-        }}
+        initialTab={financeTab}
+        onTransactionSuccess={refreshUserData}
       />
 
       <header className="sticky top-0 z-40 bg-[#030914]/80 backdrop-blur-xl border-b border-[#00f3ff]/20 px-4 py-3">
@@ -102,7 +93,7 @@ const App = () => {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => openFinance('deposit')} // ✅ يفتح على الإيداع
+              onClick={() => openFinance('deposit')}
               className="px-3 py-1.5 rounded-xl bg-[#00f3ff]/10 border border-[#00f3ff]/40 text-cyan-300 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,243,255,0.2)] hover:bg-[#00f3ff]/20 transition-all"
             >
               <Wallet className="w-4 h-4 text-[#00f3ff]" />
@@ -148,13 +139,13 @@ const App = () => {
 
               <div className="flex gap-3 w-full md:w-auto">
                 <button
-                  onClick={() => openFinance('deposit')} // ✅ يفتح على الإيداع
+                  onClick={() => openFinance('deposit')}
                   className="flex-1 md:flex-none px-6 py-3 rounded-2xl bg-[#00f3ff] text-slate-950 font-black text-xs shadow-[0_0_20px_rgba(0,243,255,0.4)] flex items-center justify-center gap-2"
                 >
                   <ArrowDownLeft className="w-4 h-4" /> إيداع
                 </button>
                 <button
-                  onClick={() => openFinance('withdraw')} // ✅ يفتح على السحب
+                  onClick={() => openFinance('withdraw')}
                   className="flex-1 md:flex-none px-6 py-3 rounded-2xl bg-orange-500 text-white font-black text-xs shadow-[0_0_20px_rgba(249,115,22,0.4)] flex items-center justify-center gap-2"
                 >
                   <ArrowUpRight className="w-4 h-4" /> سحب

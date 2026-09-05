@@ -13,26 +13,22 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
-  
-  // حالات خاصة بـ Sham Cash (للسحب فقط)
   const [shamCashName, setShamCashName] = useState('');
   const [shamCashAddress, setShamCashAddress] = useState('');
   
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  // ✅ ضبط التبويب عند فتح النافذة (أو تغير initialTab)
+  // ✅ عند فتح النافذة، نضبط التبويب ونعيد تعيين الحقول
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab);
-      // إعادة تعيين الحقول
       setAmount('');
       setAddress('');
       setTxHash('');
       setShamCashName('');
       setShamCashAddress('');
       setSuccessMsg('');
-      // إذا كان التبويب سحب ولم تكن الشبكة ShamCash، نتركها كما هي
-      // ولكن نضمن أن تكون الشبكة مناسبة للتبويب
+      // إذا كان التبويب إيداع والشبكة ShamCash، نعدلها إلى TRC20
       if (initialTab === 'deposit' && network === 'ShamCash') {
         setNetwork('TRC20');
       }
@@ -41,25 +37,16 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
 
   if (!isOpen) return null;
 
-  // ✅ دالة التحقق من صلاحية السحب (التوقيت والأيام)
   const isWithdrawAllowed = () => {
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0 = الأحد
+    const dayOfWeek = now.getDay();
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const currentTime = hours + minutes / 60;
 
-    if (dayOfWeek === 0) {
-      return { allowed: false, reason: '⚠️ السحب غير متاح يوم الأحد' };
-    }
-    if (currentTime >= 12 && currentTime < 16) {
-      return { allowed: true, reason: '✅ السحب متاح الآن' };
-    } else {
-      return {
-        allowed: false,
-        reason: '⏰ السحب متاح فقط من الساعة 12 ظهراً حتى 4 عصراً'
-      };
-    }
+    if (dayOfWeek === 0) return { allowed: false, reason: '⚠️ السحب غير متاح يوم الأحد' };
+    if (currentTime >= 12 && currentTime < 16) return { allowed: true, reason: '✅ السحب متاح الآن' };
+    return { allowed: false, reason: '⏰ السحب متاح فقط من الساعة 12 ظهراً حتى 4 عصراً' };
   };
 
   const withdrawStatus = isWithdrawAllowed();
@@ -70,19 +57,17 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
     BEP20: '0x83482Ae471c8fc1cF13923402a57f9FE876497AA'
   };
   
-  // رسوم الشبكات
   const networkFees = {
-    TRC20: 0.05,   // 5%
-    BEP20: 0.03,   // 3%
-    ShamCash: 0.04 // 4%
+    TRC20: 0.05,
+    BEP20: 0.03,
+    ShamCash: 0.04
   };
 
-  // ✅ قوائم الشبكات حسب التبويب
   const depositNetworks = ['TRC20', 'BEP20'];
   const withdrawNetworks = ['TRC20', 'BEP20', 'ShamCash'];
   const currentNetworks = activeTab === 'deposit' ? depositNetworks : withdrawNetworks;
 
-  // عند تغيير التبويب، نعيد تعيين الشبكة إلى TRC20 إذا كانت ShamCash غير مسموحة
+  // عند تغيير التبويب، نعيد تعيين الشبكة إذا كانت ShamCash غير مسموحة
   useEffect(() => {
     if (activeTab === 'deposit' && network === 'ShamCash') {
       setNetwork('TRC20');
@@ -123,7 +108,6 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
         return;
       }
       
-      // ✅ التحقق من حقول Sham Cash (فقط إذا كانت الشبكة محددة)
       if (network === 'ShamCash') {
         if (!shamCashName.trim()) {
           alert('⚠️ الرجاء إدخال اسم حساب Sham Cash');
@@ -143,13 +127,9 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
 
     setIsSubmitting(true);
     try {
-      // بناء بيانات العنوان حسب الشبكة
       let finalAddress = address;
       if (network === 'ShamCash') {
-        finalAddress = JSON.stringify({
-          name: shamCashName,
-          wallet: shamCashAddress
-        });
+        finalAddress = JSON.stringify({ name: shamCashName, wallet: shamCashAddress });
       } else if (activeTab === 'deposit') {
         finalAddress = depositAddresses[network];
       }
@@ -176,7 +156,6 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
       const data = await res.json();
       if (data.success) {
         setSuccessMsg(activeTab === 'deposit' ? '✅ تم إرسال طلب الإيداع بنجاح' : '✅ تم إرسال طلب السحب');
-        // إعادة تعيين الحقول الخاصة بـ Sham Cash
         setShamCashName('');
         setShamCashAddress('');
         if (onTransactionSuccess) onTransactionSuccess();
@@ -194,13 +173,8 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
     }
   };
 
-  // دالة مساعدة لعرض اسم الشبكة
   const getNetworkLabel = (net) => {
-    const labels = {
-      TRC20: 'Tron (USDT)',
-      BEP20: 'BSC (USDT)',
-      ShamCash: 'شام كاش (USDT)'
-    };
+    const labels = { TRC20: 'Tron (USDT)', BEP20: 'BSC (USDT)', ShamCash: 'شام كاش (USDT)' };
     return labels[net] || net;
   };
 
@@ -208,50 +182,27 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="relative w-full max-w-lg bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl text-white max-h-[85vh] flex flex-col">
         
-        {/* الرأس الثابت */}
         <div className="sticky top-0 z-10 bg-[#030914]/95 rounded-t-3xl px-6 pt-6 pb-3 border-b border-white/10">
-          <button
-            onClick={onClose}
-            className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all z-20"
-          >
+          <button onClick={onClose} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all z-20">
             <X className="w-5 h-5" />
           </button>
-
           <div className="text-center">
             <h2 className="text-2xl font-black text-white tracking-wide">
               {activeTab === 'deposit' ? 'إيداع رصيد' : 'سحب أرباح'}
             </h2>
             <div className="grid grid-cols-2 gap-2 p-1 bg-white/5 border border-white/10 rounded-2xl mt-2">
               <button
-                onClick={() => {
-                  setActiveTab('deposit');
-                  setSuccessMsg('');
-                  setAmount('');
-                  setTxHash('');
-                  setNetwork('TRC20');
-                }}
+                onClick={() => { setActiveTab('deposit'); setSuccessMsg(''); setAmount(''); setTxHash(''); setNetwork('TRC20'); }}
                 className={`py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                  activeTab === 'deposit'
-                    ? 'bg-[#00f3ff] text-slate-950 shadow-[0_0_15px_rgba(0,243,255,0.4)]'
-                    : 'text-gray-400 hover:text-white'
+                  activeTab === 'deposit' ? 'bg-[#00f3ff] text-slate-950 shadow-[0_0_15px_rgba(0,243,255,0.4)]' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 <ArrowDownLeft className="w-4 h-4" /> إيداع
               </button>
               <button
-                onClick={() => {
-                  setActiveTab('withdraw');
-                  setSuccessMsg('');
-                  setAmount('');
-                  setAddress('');
-                  setShamCashName('');
-                  setShamCashAddress('');
-                  setNetwork('TRC20');
-                }}
+                onClick={() => { setActiveTab('withdraw'); setSuccessMsg(''); setAmount(''); setAddress(''); setShamCashName(''); setShamCashAddress(''); setNetwork('TRC20'); }}
                 className={`py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                  activeTab === 'withdraw'
-                    ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]'
-                    : 'text-gray-400 hover:text-white'
+                  activeTab === 'withdraw' ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'text-gray-400 hover:text-white'
                 }`}
               >
                 <ArrowUpRight className="w-4 h-4" /> سحب
@@ -260,10 +211,8 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
           </div>
         </div>
 
-        {/* المحتوى القابل للتمرير */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 scrollbar-thin scrollbar-thumb-cyan-500/20 scrollbar-track-transparent">
           
-          {/* عرض قواعد السحب (فقط في تبويب السحب) */}
           {activeTab === 'withdraw' && (
             <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 space-y-2">
               <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm">
@@ -295,7 +244,6 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
             </div>
           )}
 
-          {/* ✅ اختيار الشبكة حسب التبويب (الإيداع: TRC20/BEP20 فقط، السحب: + ShamCash) */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-300">اختر شبكة التحويل:</label>
             <div className={`grid ${currentNetworks.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
@@ -303,24 +251,13 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
                 <button
                   key={net}
                   type="button"
-                  onClick={() => {
-                    setNetwork(net);
-                    setAmount('');
-                    if (net !== 'ShamCash') {
-                      setShamCashName('');
-                      setShamCashAddress('');
-                    }
-                  }}
+                  onClick={() => { setNetwork(net); setAmount(''); if (net !== 'ShamCash') { setShamCashName(''); setShamCashAddress(''); } }}
                   className={`p-3 rounded-2xl border text-center transition-all ${
-                    network === net
-                      ? 'border-[#00f3ff] bg-[#00f3ff]/10 shadow-[0_0_12px_rgba(0,243,255,0.2)]'
-                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                    network === net ? 'border-[#00f3ff] bg-[#00f3ff]/10 shadow-[0_0_12px_rgba(0,243,255,0.2)]' : 'border-white/10 bg-white/5 hover:border-white/20'
                   }`}
                 >
                   <div className="font-bold text-sm text-white">{getNetworkLabel(net)}</div>
-                  <div className="text-[10px] text-cyan-400 font-mono mt-1">
-                    رسوم: {(networkFees[net] * 100).toFixed(0)}%
-                  </div>
+                  <div className="text-[10px] text-cyan-400 font-mono mt-1">رسوم: {(networkFees[net] * 100).toFixed(0)}%</div>
                   {net === 'ShamCash' && activeTab === 'withdraw' && (
                     <div className="text-[8px] text-yellow-400/70 mt-1">💳 للسحب فقط</div>
                   )}
@@ -332,20 +269,11 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
           {activeTab === 'deposit' ? (
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/10 text-center space-y-3">
-                <p className="text-xs text-gray-400">
-                  عنوان محفظة الإيداع المخصصة لك ({network}):
-                </p>
+                <p className="text-xs text-gray-400">عنوان محفظة الإيداع المخصصة لك ({network}):</p>
                 <div className="p-3 bg-[#030914] rounded-xl border border-cyan-500/30 flex items-center justify-between gap-2 font-mono text-xs text-cyan-300 break-all">
                   <span>{depositAddresses[network]}</span>
-                  <button
-                    onClick={() => handleCopy(depositAddresses[network])}
-                    className="p-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 transition-all shrink-0"
-                  >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
+                  <button onClick={() => handleCopy(depositAddresses[network])} className="p-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 transition-all shrink-0">
+                    {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
                 <div className="flex items-center justify-center gap-2 text-[11px] text-yellow-400/90 pt-1">
@@ -356,47 +284,20 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-300">
-                    المبلغ المحوّل ($ USDT):
-                  </label>
+                  <label className="text-xs font-bold text-gray-300">المبلغ المحوّل ($ USDT):</label>
                   <div className="relative">
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="أدخل المبلغ..."
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      required
-                      className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-sm"
-                    />
-                    <span className="absolute left-4 top-3.5 text-xs font-bold text-cyan-400">
-                      USDT
-                    </span>
+                    <input type="number" step="0.01" placeholder="أدخل المبلغ..." value={amount} onChange={(e) => setAmount(e.target.value)} required className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-sm" />
+                    <span className="absolute left-4 top-3.5 text-xs font-bold text-cyan-400">USDT</span>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-300">
-                    📝 رقم المعاملة (Transaction Hash):
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="أدخل رقم المعاملة من محفظتك..."
-                    value={txHash}
-                    onChange={(e) => setTxHash(e.target.value)}
-                    required
-                    className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs"
-                  />
-                  <p className="text-[10px] text-gray-400">
-                    انسخه من محفظتك بعد إرسال التحويل.
-                  </p>
+                  <label className="text-xs font-bold text-gray-300">📝 رقم المعاملة (Transaction Hash):</label>
+                  <input type="text" placeholder="أدخل رقم المعاملة من محفظتك..." value={txHash} onChange={(e) => setTxHash(e.target.value)} required className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs" />
+                  <p className="text-[10px] text-gray-400">انسخه من محفظتك بعد إرسال التحويل.</p>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all disabled:opacity-50"
-                >
+                <button type="submit" disabled={isSubmitting} className="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all disabled:opacity-50">
                   {isSubmitting ? 'جاري التأكيد...' : 'تأكيد عملية الإيداع'}
                 </button>
               </form>
@@ -405,79 +306,33 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="p-3 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex justify-between items-center text-xs">
                 <span className="text-gray-400">الرصيد المتاح:</span>
-                <span className="font-bold text-orange-400 font-mono text-sm">
-                  ${balance.toFixed(2)} USDT
-                </span>
+                <span className="font-bold text-orange-400 font-mono text-sm">${balance.toFixed(2)} USDT</span>
               </div>
 
-              {/* ✅ إذا كانت الشبكة Sham Cash، نعرض حقول خاصة (اسم + عنوان محفظة) */}
               {network === 'ShamCash' ? (
                 <>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-300 flex items-center gap-1">
-                      <User className="w-4 h-4 text-cyan-400" />
-                      اسم حساب Sham Cash:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="أدخل اسم الحساب في Sham Cash..."
-                      value={shamCashName}
-                      onChange={(e) => setShamCashName(e.target.value)}
-                      required
-                      className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs"
-                    />
+                    <label className="text-xs font-bold text-gray-300 flex items-center gap-1"><User className="w-4 h-4 text-cyan-400" /> اسم حساب Sham Cash:</label>
+                    <input type="text" placeholder="أدخل اسم الحساب في Sham Cash..." value={shamCashName} onChange={(e) => setShamCashName(e.target.value)} required className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs" />
                   </div>
-
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-300 flex items-center gap-1">
-                      <Wallet className="w-4 h-4 text-cyan-400" />
-                      عنوان محفظة Sham Cash (USDT):
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="أدخل عنوان محفظة Sham Cash (USDT)..."
-                      value={shamCashAddress}
-                      onChange={(e) => setShamCashAddress(e.target.value)}
-                      required
-                      className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs"
-                    />
-                    <p className="text-[10px] text-gray-400">
-                      سيتم إرسال USDT إلى هذه المحفظة عبر Sham Cash.
-                    </p>
+                    <label className="text-xs font-bold text-gray-300 flex items-center gap-1"><Wallet className="w-4 h-4 text-cyan-400" /> عنوان محفظة Sham Cash (USDT):</label>
+                    <input type="text" placeholder="أدخل عنوان محفظة Sham Cash (USDT)..." value={shamCashAddress} onChange={(e) => setShamCashAddress(e.target.value)} required className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs" />
+                    <p className="text-[10px] text-gray-400">سيتم إرسال USDT إلى هذه المحفظة عبر Sham Cash.</p>
                   </div>
                 </>
               ) : (
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-gray-300">
-                    عنوان محفظة المستلم ({network}):
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={`أدخل عنوان محفظتك (${network})...`}
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs"
-                  />
+                  <label className="text-xs font-bold text-gray-300">عنوان محفظة المستلم ({network}):</label>
+                  <input type="text" placeholder={`أدخل عنوان محفظتك (${network})...`} value={address} onChange={(e) => setAddress(e.target.value)} required className="w-full bg-white/5 border border-white/10 focus:border-orange-500 rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none transition-all font-mono text-xs" />
                 </div>
               )}
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-gray-300">
-                  اختر مبلغ السحب ($ USDT):
-                </label>
+                <label className="text-xs font-bold text-gray-300">اختر مبلغ السحب ($ USDT):</label>
                 <div className="grid grid-cols-3 gap-2">
                   {withdrawAmounts.map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setAmount(val.toString())}
-                      className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                        parseFloat(amount) === val
-                          ? 'bg-orange-500 border-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]'
-                          : 'bg-white/5 border-white/10 text-gray-300 hover:border-orange-400 hover:text-white'
-                      }`}
-                    >
+                    <button key={val} type="button" onClick={() => setAmount(val.toString())} className={`py-2 rounded-xl text-xs font-bold border transition-all ${parseFloat(amount) === val ? 'bg-orange-500 border-orange-500 text-white shadow-[0_0_15px_rgba(249,115,22,0.3)]' : 'bg-white/5 border-white/10 text-gray-300 hover:border-orange-400 hover:text-white'}`}>
                       ${val}
                     </button>
                   ))}
@@ -487,9 +342,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
               {amount && (
                 <div className="p-2 rounded-xl bg-orange-500/5 border border-orange-500/20 text-center text-sm">
                   <span className="text-gray-400">المبلغ المختار: </span>
-                  <span className="font-bold text-orange-400">
-                    ${parseFloat(amount).toFixed(2)}
-                  </span>
+                  <span className="font-bold text-orange-400">${parseFloat(amount).toFixed(2)}</span>
                 </div>
               )}
 
@@ -511,23 +364,12 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
 
               <button
                 type="submit"
-                disabled={
-                  isSubmitting ||
-                  !amount ||
-                  parsedAmount <= 0 ||
-                  !withdrawStatus.allowed
-                }
+                disabled={isSubmitting || !amount || parsedAmount <= 0 || !withdrawStatus.allowed}
                 className={`w-full py-4 rounded-2xl font-black text-sm shadow-[0_0_20px_rgba(249,115,22,0.4)] transition-all ${
-                  !withdrawStatus.allowed
-                    ? 'bg-gray-600 text-gray-300 cursor-not-allowed shadow-none'
-                    : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:shadow-[0_0_30px_rgba(249,115,22,0.6)]'
+                  !withdrawStatus.allowed ? 'bg-gray-600 text-gray-300 cursor-not-allowed shadow-none' : 'bg-gradient-to-r from-orange-500 to-amber-500 text-white hover:shadow-[0_0_30px_rgba(249,115,22,0.6)]'
                 }`}
               >
-                {isSubmitting
-                  ? 'جاري المعالجة...'
-                  : !withdrawStatus.allowed
-                  ? '⛔ غير متاح الآن'
-                  : `تأكيد طلب السحب عبر ${network === 'ShamCash' ? 'شام كاش' : network}`}
+                {isSubmitting ? 'جاري المعالجة...' : !withdrawStatus.allowed ? '⛔ غير متاح الآن' : `تأكيد طلب السحب عبر ${network === 'ShamCash' ? 'شام كاش' : network}`}
               </button>
             </form>
           )}
