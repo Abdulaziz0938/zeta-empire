@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, TrendingUp, Share2, Copy, Check, Crown, User, Phone, DollarSign } from 'lucide-react';
+import { Users, TrendingUp, Share2, Copy, Check, Crown, User, Phone, DollarSign, RefreshCw } from 'lucide-react';
 import { useZeta } from '../context/ZetaContext.jsx';
 
 const TeamPage = ({ lang = 'ar' }) => {
@@ -9,6 +9,18 @@ const TeamPage = ({ lang = 'ar' }) => {
   const [teamData, setTeamData] = useState({ A: [], B: [], C: [] });
   const [loading, setLoading] = useState(true);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+
+  // ✅ إذا لم يكن هناك مستخدم، نعرض شاشة تحميل
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#030914] text-white flex items-center justify-center p-8">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-cyan-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">جاري تحميل بيانات المستخدم...</p>
+        </div>
+      </div>
+    );
+  }
 
   const t = {
     ar: {
@@ -53,7 +65,6 @@ const TeamPage = ({ lang = 'ar' }) => {
     }
   }[lang];
 
-  // ✅ جلب بيانات الفريق من الخادم
   const fetchTeamData = async () => {
     if (!user?._id && !user?.id) {
       setLoading(false);

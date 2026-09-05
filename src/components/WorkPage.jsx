@@ -7,10 +7,17 @@ import { useZeta } from '../context/ZetaContext.jsx';
 
 const WorkPage = ({ lang = 'ar' }) => {
   const { user, refreshUser } = useZeta();
-  
-  // ✅ إذا لم يكن هناك مستخدم، لا نعرض شيئاً
+
+  // ✅ إذا لم يكن هناك مستخدم، نعرض شاشة تحميل
   if (!user) {
-    return <div className="min-h-screen bg-[#030914] text-white p-8 text-center">جاري التحميل...</div>;
+    return (
+      <div className="min-h-screen bg-[#030914] text-white flex items-center justify-center p-8">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-cyan-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">جاري تحميل بيانات المستخدم...</p>
+        </div>
+      </div>
+    );
   }
 
   const t = {
@@ -187,9 +194,7 @@ const WorkPage = ({ lang = 'ar' }) => {
           <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center animate-pulse shadow-[0_0_30px_rgba(34,197,94,0.2)]">
             <RotateCcw className="w-16 h-16 text-green-400 mx-auto mb-3 drop-shadow-[0_0_20px_#22c55e]" />
             <h3 className="text-2xl font-bold text-white">{t.contractRenewed}</h3>
-            <p className="text-cyan-200 text-lg">
-              {t.profitAdded}: <span className="text-green-400 font-extrabold text-2xl">+${totalProfit.toFixed(2)}</span>
-            </p>
+            <p className="text-cyan-200 text-lg">{t.profitAdded}: <span className="text-green-400 font-extrabold text-2xl">+${totalProfit.toFixed(2)}</span></p>
             <p className="text-xs text-gray-400 mt-2">{t.contractLocked} (${lockedAmount.toFixed(2)})</p>
           </div>
         )}
@@ -274,22 +279,11 @@ const WorkPage = ({ lang = 'ar' }) => {
                   const taskProfit = profitPerTask;
 
                   return (
-                    <div key={idx} className={`group relative overflow-hidden transition-all duration-500 backdrop-blur-xl rounded-2xl p-6 border flex flex-col md:flex-row items-center justify-between gap-4 ${
-                      isCompleted ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/10 border-green-500/40 shadow-[0_0_25px_rgba(34,197,94,0.1)]' :
-                      isCurrent ? 'bg-gradient-to-r from-cyan-500/30 to-[#00f3ff]/10 border-[#00f3ff] shadow-[0_0_35px_rgba(0,243,255,0.25)] animate-pulse' :
-                      'bg-white/5 border-white/10 opacity-60 hover:opacity-100'
-                    }`}>
-                      <div className={`absolute inset-y-0 left-0 w-1.5 rounded-r-full transition-all ${
-                        isCompleted ? 'bg-green-400 shadow-[0_0_15px_#22c55e]' : 
-                        isCurrent ? 'bg-[#00f3ff] shadow-[0_0_25px_#00f3ff]' : 'bg-gray-600'
-                      }`} />
+                    <div key={idx} className={`group relative overflow-hidden transition-all duration-500 backdrop-blur-xl rounded-2xl p-6 border flex flex-col md:flex-row items-center justify-between gap-4 ${isCompleted ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/10 border-green-500/40 shadow-[0_0_25px_rgba(34,197,94,0.1)]' : isCurrent ? 'bg-gradient-to-r from-cyan-500/30 to-[#00f3ff]/10 border-[#00f3ff] shadow-[0_0_35px_rgba(0,243,255,0.25)] animate-pulse' : 'bg-white/5 border-white/10 opacity-60 hover:opacity-100'}`}>
+                      <div className={`absolute inset-y-0 left-0 w-1.5 rounded-r-full transition-all ${isCompleted ? 'bg-green-400 shadow-[0_0_15px_#22c55e]' : isCurrent ? 'bg-[#00f3ff] shadow-[0_0_25px_#00f3ff]' : 'bg-gray-600'}`} />
 
                       <div className="flex items-center gap-5 w-full md:w-auto flex-wrap">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border transition-all ${
-                          isCompleted ? 'bg-green-500/20 text-green-400 border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.2)]' :
-                          isCurrent ? 'bg-[#00f3ff]/20 text-[#00f3ff] border-[#00f3ff]/50 shadow-[0_0_20px_rgba(0,243,255,0.3)]' :
-                          'bg-white/5 text-gray-500 border-white/10'
-                        }`}>#{idx + 1}</div>
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border transition-all ${isCompleted ? 'bg-green-500/20 text-green-400 border-green-500/40 shadow-[0_0_20px_rgba(34,197,94,0.2)]' : isCurrent ? 'bg-[#00f3ff]/20 text-[#00f3ff] border-[#00f3ff]/50 shadow-[0_0_20px_rgba(0,243,255,0.3)]' : 'bg-white/5 text-gray-500 border-white/10'}`}>#{idx + 1}</div>
                         <div><p className="text-xs text-gray-400 flex items-center gap-1"><DollarSign className="w-3 h-3" /> {t.taskPrice}</p><p className="text-xl font-bold text-white font-mono">${price.toFixed(2)}</p></div>
                         <div className="hidden md:block w-px h-10 bg-white/10" />
                         <div><p className="text-xs text-gray-400 flex items-center gap-1"><Zap className="w-3 h-3 text-yellow-400" /> {t.commissionEarned}</p><p className="text-xl font-bold text-cyan-300 font-mono">+${taskProfit.toFixed(2)}</p></div>
