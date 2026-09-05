@@ -8,7 +8,6 @@ export const ZetaProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef(null);
 
-  // ===== تحميل البيانات من localStorage عند بدء التطبيق =====
   useEffect(() => {
     const savedUser = localStorage.getItem('zeta_user');
     if (savedUser) {
@@ -24,29 +23,19 @@ export const ZetaProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // ===== تحديث دوري كل 15 ثانية (كحل احتياطي) =====
+  // تحديث دوري احتياطي (كل 15 ثانية)
   useEffect(() => {
-    // بدء التحديث الدوري فقط إذا كان المستخدم مسجلاً
     if (isLoggedIn && user?.phone) {
-      // تنظيف الـ interval السابق
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      
-      // إنشاء interval جديد
+      if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = setInterval(async () => {
-        console.log('🔄 تحديث دوري للبيانات (كل 15 ثانية)...');
         await refreshUser();
-      }, 15000); // 15 ثانية
+      }, 15000);
     } else {
-      // إيقاف التحديث الدوري إذا لم يكن هناك مستخدم
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
     }
-
-    // تنظيف عند إزالة المكون
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -71,6 +60,16 @@ export const ZetaProvider = ({ children }) => {
     }
   };
 
+  // ✅ تحديث فوري باستخدام بيانات من الخادم (بدون انتظار API)
+  const updateUserDirectly = (userData) => {
+    if (!userData) return;
+    const updatedUser = { ...user, ...userData };
+    setUser(updatedUser);
+    localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
+    console.log('⚡ تحديث فوري للمستخدم:', updatedUser.fullName, 'الرصيد:', updatedUser.balance);
+  };
+
+  // ✅ تحديث بالاتصال بالخادم (دوري أو يدوي)
   const refreshUser = async () => {
     if (!user?.phone) {
       console.warn('⚠️ لا يوجد مستخدم لتحديثه');
@@ -84,10 +83,8 @@ export const ZetaProvider = ({ children }) => {
         const updatedUser = data.user;
         setUser(updatedUser);
         localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
-        console.log('✅ تم تحديث بيانات المستخدم:', updatedUser.fullName, 'الرصيد:', updatedUser.balance);
+        console.log('✅ تم تحديث بيانات المستخدم (من الخادم):', updatedUser.fullName, 'الرصيد:', updatedUser.balance);
         return updatedUser;
-      } else {
-        console.warn('⚠️ فشل تحديث بيانات المستخدم:', data.message);
       }
     } catch (error) {
       console.error('❌ فشل تحديث بيانات المستخدم:', error);
@@ -109,7 +106,8 @@ export const ZetaProvider = ({ children }) => {
     login,
     logout,
     refreshUser,
-    updateUser
+    updateUser,
+    updateUserDirectly // ✅ دالة جديدة للتحديث الفوري
   };
 
   return (
