@@ -46,12 +46,13 @@ function isWithdrawTimeAllowed() {
   const minutes = now.getMinutes();
   const currentTime = hours + minutes / 60;
 
-  // ممنوع يوم الأحد
   if (dayOfWeek === 0) return false;
-  // مسموح فقط من 12:00 إلى 16:00 (12 ظهراً إلى 4 عصراً)
   if (currentTime >= 12 && currentTime < 16) return true;
   return false;
 }
+
+// ===== قائمة مبالغ السحب المسموحة (لحماية الخادم من التلاعب) =====
+const ALLOWED_WITHDRAW_AMOUNTS = [14, 25, 50, 100, 200, 500, 1000];
 
 // ============================================================
 // ✅ واجهات API الأساسية
@@ -124,7 +125,6 @@ app.post('/api/auth/register', async (req, res) => {
     const newUser = new User(userData);
     await newUser.save();
 
-    // زيادة الإحالات للمُشير إذا وُجد كود دعوة
     if (userData.referralCode) {
       const referrer = await User.findOne({ inviteCode: userData.referralCode });
       if (referrer) {
@@ -162,18 +162,26 @@ app.post('/api/tasks/complete', async (req, res) => {
 });
 
 // ============================================================
-// ✅ المعاملات (بما فيها منع السحب خارج الوقت)
+// ✅ المعاملات (مع منع السحب خارج الوقت والمبالغ غير المسموحة)
 // ============================================================
 
 app.post('/api/transactions', async (req, res) => {
   try {
     const { userId, userName, phone, type, amount, network, address, txHash, fee, note } = req.body;
 
-    // ✅ منع طلبات السحب خارج الوقت المسموح
+    // 1. منع طلبات السحب خارج الوقت المسموح
     if (type === 'withdraw' && !isWithdrawTimeAllowed()) {
       return res.status(403).json({
         success: false,
         message: '⛔ السحب غير متاح حالياً. السحب مسموح من 12 ظهراً إلى 4 عصراً (ما عدا الأحد).'
+      });
+    }
+
+    // 2. ✅ التحقق من أن مبلغ السحب من ضمن القائمة المسموحة (لمنع التلاعب)
+    if (type === 'withdraw' && !ALLOWED_WITHDRAW_AMOUNTS.includes(Number(amount))) {
+      return res.status(400).json({
+        success: false,
+        message: `⚠️ مبلغ السحب غير مسموح به. المبالغ المسموحة: ${ALLOWED_WITHDRAW_AMOUNTS.join(', ')}`
       });
     }
 
@@ -472,12 +480,11 @@ app.post('/api/vip/purchase', async (req, res) => {
 
     const totalCost = vipPrices[vipLevel];
 
-    // عملية ذرية مع شرطين: رصيد كافٍ + المستوى المطلوب أعلى من الحالي
     const user = await User.findOneAndUpdate(
       {
         _id: userId,
         balance: { $gte: totalCost },
-        vipLevel: { $lt: vipLevel }  // منع خفض المستوى
+        vipLevel: { $lt: vipLevel }
       },
       {
         $inc: {
@@ -490,7 +497,6 @@ app.post('/api/vip/purchase', async (req, res) => {
     );
 
     if (!user) {
-      // تحقق من السبب لإعطاء رسالة دقيقة
       const existing = await User.findById(userId);
       if (!existing) {
         return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
@@ -510,7 +516,6 @@ app.post('/api/vip/purchase', async (req, res) => {
       return res.status(400).json({ success: false, message: 'حدث خطأ غير متوقع' });
     }
 
-    // تسجيل المعاملة
     const transaction = new Transaction({
       userId: user._id,
       userName: user.fullName,
