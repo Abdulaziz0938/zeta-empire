@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
-import { Users, UserCheck, TrendingUp, Phone, ShieldCheck, DollarSign, Share2, Copy, Check, ChevronLeft, Crown, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, TrendingUp, Share2, Copy, Check, Crown } from 'lucide-react';
 import { useZeta } from '../context/ZetaContext.jsx';
 
 const TeamPage = ({ lang = 'ar' }) => {
-  const { user } = useZeta();
+  const { user, refreshUser } = useZeta();
   const [activeTab, setActiveTab] = useState('A');
   const [copied, setCopied] = useState(false);
+  const [teamData, setTeamData] = useState({ A: [], B: [], C: [] });
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
   const t = {
     ar: {
       title: "شجرة الفريق والدخل السلبي",
-      subtitle: "إدارة أعضاء فريقك ومتابعة العمولات التراكمية للفئات A و B و C",
+      subtitle: "إدارة أعضاء فريقك ومتابعة العمولات التراكمية",
       inviteLink: "كود الدعوة الخاص بك",
       copyCode: "نسخ الكود",
       copied: "تم النسخ!",
@@ -24,11 +26,12 @@ const TeamPage = ({ lang = 'ar' }) => {
       contractAmount: "مبلغ العقد",
       passiveEarned: "الدخل السلبي منه",
       noMembers: "لا يوجد أعضاء في هذه الفئة حالياً",
-      priorityBadge: "أولوية مباشرة"
+      priorityBadge: "أولوية مباشرة",
+      totalReferrals: "إجمالي الإحالات"
     },
     en: {
       title: "Team Tree & Passive Income",
-      subtitle: "Manage team members and track commissions across A, B, and C levels",
+      subtitle: "Manage team members and track commissions",
       inviteLink: "Your Invitation Code",
       copyCode: "Copy Code",
       copied: "Copied!",
@@ -42,16 +45,29 @@ const TeamPage = ({ lang = 'ar' }) => {
       contractAmount: "Contract Value",
       passiveEarned: "Passive Profit",
       noMembers: "No members found in this class yet",
-      priorityBadge: "Direct Priority"
+      priorityBadge: "Direct Priority",
+      totalReferrals: "Total Referrals"
     }
   }[lang];
 
-  // استخدام بيانات حقيقية من user
-  const teamData = {
-    A: user?.teamA || [],
-    B: user?.teamB || [],
-    C: user?.teamC || []
+  // ✅ جلب بيانات الفريق من الخادم
+  const fetchTeamData = async () => {
+    if (!user?._id && !user?.id) return;
+    const userId = user._id || user.id;
+    try {
+      const res = await fetch(`${API_BASE}/api/team/${userId}`);
+      const data = await res.json();
+      if (data.success) {
+        setTeamData(data.team);
+      }
+    } catch (error) {
+      console.error('❌ فشل جلب بيانات الفريق:', error);
+    }
   };
+
+  useEffect(() => {
+    fetchTeamData();
+  }, [user]);
 
   const inviteCode = user?.inviteCode || "ZETA" + Math.floor(1000 + Math.random() * 9000);
 
@@ -65,6 +81,9 @@ const TeamPage = ({ lang = 'ar' }) => {
   const totalPassiveEarnings = [
     ...teamData.A, ...teamData.B, ...teamData.C
   ].reduce((acc, m) => acc + (m.passiveProfit || 0), 0);
+
+  // ✅ عرض عدد الإحالات من user
+  const totalReferrals = user?.referrals || 0;
 
   return (
     <div className={`min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -90,7 +109,7 @@ const TeamPage = ({ lang = 'ar' }) => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
             <div><p className="text-xs text-cyan-300/70 uppercase">{t.totalTeam}</p><h3 className="text-3xl font-extrabold text-white mt-1">{totalMembers} <span className="text-sm font-normal text-cyan-400">أعضاء</span></h3></div>
             <Users className="w-12 h-12 text-[#00f3ff] drop-shadow-[0_0_12px_#00f3ff]" />
@@ -98,6 +117,10 @@ const TeamPage = ({ lang = 'ar' }) => {
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
             <div><p className="text-xs text-cyan-300/70 uppercase">{t.totalPassive}</p><h3 className="text-3xl font-extrabold text-green-400 mt-1">${totalPassiveEarnings.toFixed(2)}</h3></div>
             <TrendingUp className="w-12 h-12 text-green-400 drop-shadow-[0_0_12px_#22c55e]" />
+          </div>
+          <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
+            <div><p className="text-xs text-cyan-300/70 uppercase">{t.totalReferrals}</p><h3 className="text-3xl font-extrabold text-yellow-400 mt-1">{totalReferrals}</h3></div>
+            <Crown className="w-12 h-12 text-yellow-400 drop-shadow-[0_0_12px_#fde047]" />
           </div>
         </div>
 
@@ -128,11 +151,11 @@ const TeamPage = ({ lang = 'ar' }) => {
               <p className="text-gray-400">{t.noMembers}</p>
             </div>
           ) : (
-            teamData[activeTab].map((member) => (
-              <div key={member.id} className="bg-[#00f3ff]/[0.04] backdrop-blur-xl border border-[#00f3ff]/20 hover:border-[#00f3ff] rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_15px_rgba(0,243,255,0.05)] hover:shadow-[0_0_25px_rgba(0,243,255,0.2)]">
+            teamData[activeTab].map((member, idx) => (
+              <div key={idx} className="bg-[#00f3ff]/[0.04] backdrop-blur-xl border border-[#00f3ff]/20 hover:border-[#00f3ff] rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_15px_rgba(0,243,255,0.05)] hover:shadow-[0_0_25px_rgba(0,243,255,0.2)]">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                    <Phone className="w-5 h-5" />
+                    <Users className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">{t.phone}</p>
@@ -140,9 +163,9 @@ const TeamPage = ({ lang = 'ar' }) => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full md:w-auto text-center md:text-right">
-                  <div><p className="text-xs text-gray-400">{t.vipLevel}</p><span className="inline-block mt-0.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 font-bold text-xs">VIP {member.vip}</span></div>
-                  <div><p className="text-xs text-gray-400">{t.contractAmount}</p><p className="text-base font-bold text-white mt-0.5">${member.deposit}</p></div>
-                  <div className="col-span-2 md:col-span-1"><p className="text-xs text-gray-400">{t.passiveEarned}</p><p className="text-base font-extrabold text-green-400 mt-0.5">+${member.passiveProfit.toFixed(2)}</p></div>
+                  <div><p className="text-xs text-gray-400">{t.vipLevel}</p><span className="inline-block mt-0.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 font-bold text-xs">VIP {member.vipLevel}</span></div>
+                  <div><p className="text-xs text-gray-400">{t.contractAmount}</p><p className="text-base font-bold text-white mt-0.5">${member.totalDeposit}</p></div>
+                  <div className="col-span-2 md:col-span-1"><p className="text-xs text-gray-400">{t.passiveEarned}</p><p className="text-base font-extrabold text-green-400 mt-0.5">+${(member.totalDeposit * 0.05).toFixed(2)}</p></div>
                 </div>
               </div>
             ))
