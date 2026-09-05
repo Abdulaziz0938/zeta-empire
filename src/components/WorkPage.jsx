@@ -8,7 +8,6 @@ import { useZeta } from '../context/ZetaContext.jsx';
 const WorkPage = ({ lang = 'ar' }) => {
   const { user, refreshUser } = useZeta();
 
-  // ✅ إذا لم يكن هناك مستخدم، نعرض شاشة تحميل
   if (!user) {
     return (
       <div className="min-h-screen bg-[#030914] text-white flex items-center justify-center p-8">
@@ -225,28 +224,28 @@ const WorkPage = ({ lang = 'ar' }) => {
         </div>
 
         {contractAmount > 0 && (
-          <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-5 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-300">{t.contractAmount}:</span>
-              <span className="text-lg font-bold text-cyan-300">${lockedAmount.toFixed(2)}</span>
+          <>
+            <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 backdrop-blur-xl border border-cyan-500/20 rounded-2xl p-5 shadow-[0_0_15px_rgba(0,243,255,0.05)]">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-300">{t.contractAmount}:</span>
+                <span className="text-lg font-bold text-cyan-300">${lockedAmount.toFixed(2)}</span>
+              </div>
+              <div className="mt-3 flex justify-between text-xs text-gray-400">
+                <span>{t.earnedSoFar}: <span className="text-green-400 font-bold">${earnedSoFar.toFixed(2)}</span></span>
+                <span>{t.remaining}: {5 - completedCount} {lang === 'ar' ? 'مهمة' : 'tasks'}</span>
+              </div>
             </div>
-            <div className="mt-3 flex justify-between text-xs text-gray-400">
-              <span>{t.earnedSoFar}: <span className="text-green-400 font-bold">${earnedSoFar.toFixed(2)}</span></span>
-              <span>{t.remaining}: {5 - completedCount} {lang === 'ar' ? 'مهمة' : 'tasks'}</span>
-            </div>
-          </div>
-        )}
 
-        {contractAmount > 0 && (
-          <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-5">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-cyan-200 font-bold">{t.progress}</span>
-              <span className="text-[#00f3ff] font-mono font-bold">{Math.round((completedCount / 5) * 100)}%</span>
+            <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-5">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-cyan-200 font-bold">{t.progress}</span>
+                <span className="text-[#00f3ff] font-mono font-bold">{Math.round((completedCount / 5) * 100)}%</span>
+              </div>
+              <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden border border-[#00f3ff]/20 p-0.5 shadow-inner">
+                <div className="h-full bg-gradient-to-r from-cyan-400 to-[#00f3ff] rounded-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(0,243,255,0.6)]" style={{ width: `${(completedCount / 5) * 100}%` }} />
+              </div>
             </div>
-            <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden border border-[#00f3ff]/20 p-0.5 shadow-inner">
-              <div className="h-full bg-gradient-to-r from-cyan-400 to-[#00f3ff] rounded-full transition-all duration-700 ease-out shadow-[0_0_15px_rgba(0,243,255,0.6)]" style={{ width: `${(completedCount / 5) * 100}%` }} />
-            </div>
-          </div>
+          </>
         )}
 
         {allTasksDone ? (

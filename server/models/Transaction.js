@@ -3,7 +3,7 @@ const transactionSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName: { type: String, required: true },
   phone: { type: String, required: true },
-  type: { type: String, enum: ['deposit', 'withdraw', 'commission', 'purchase'], required: true },
+  type: { type: String, enum: ['deposit', 'withdraw', 'commission'], required: true },
   amount: { type: Number, required: true },
   network: { type: String, default: 'SYSTEM' },
   address: { type: String, default: '' },

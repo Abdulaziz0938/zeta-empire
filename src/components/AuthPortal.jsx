@@ -15,8 +15,42 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
   const [errors, setErrors] = useState({});
 
   const t = {
-    ar: { loginTab: "تسجيل الدخول", registerTab: "حساب جديد", titleLogin: "مرحباً بعودتك", titleRegister: "إنشاء حساب جديد", fullName: "الاسم الكامل", phone: "رقم الهاتف", password: "كلمة السر", confirmPassword: "تأكيد كلمة السر", withdrawPin: "رمز السحب (6 أرقام)", referralCode: "كود الدعوة (اختياري)", submitLogin: "تسجيل الدخول", submitRegister: "إنشاء الحساب", hasAccount: "لديك حساب بالفعل؟", noAccount: "ليس لديك حساب؟", pinNotice: "أدخل 6 أرقام لرمز السحب", demoLogin: "🚀 دخول تجريبي" },
-    en: { loginTab: "Sign In", registerTab: "Sign Up", titleLogin: "Welcome Back", titleRegister: "Create Account", fullName: "Full Name", phone: "Phone Number", password: "Password", confirmPassword: "Confirm Password", withdrawPin: "Withdrawal PIN (6 Digits)", referralCode: "Referral Code", submitLogin: "Sign In", submitRegister: "Create Account", hasAccount: "Already have an account?", noAccount: "Don't have an account?", pinNotice: "Enter 6 digits for your PIN", demoLogin: "🚀 Demo Login" }
+    ar: {
+      loginTab: "تسجيل الدخول",
+      registerTab: "حساب جديد",
+      titleLogin: "مرحباً بعودتك",
+      titleRegister: "إنشاء حساب جديد",
+      fullName: "الاسم الكامل",
+      phone: "رقم الهاتف",
+      password: "كلمة السر",
+      confirmPassword: "تأكيد كلمة السر",
+      withdrawPin: "رمز السحب (6 أرقام)",
+      referralCode: "كود الدعوة (اختياري)",
+      submitLogin: "تسجيل الدخول",
+      submitRegister: "إنشاء الحساب",
+      hasAccount: "لديك حساب بالفعل؟",
+      noAccount: "ليس لديك حساب؟",
+      pinNotice: "أدخل 6 أرقام لرمز السحب",
+      demoLogin: "🚀 دخول تجريبي"
+    },
+    en: {
+      loginTab: "Sign In",
+      registerTab: "Sign Up",
+      titleLogin: "Welcome Back",
+      titleRegister: "Create Account",
+      fullName: "Full Name",
+      phone: "Phone Number",
+      password: "Password",
+      confirmPassword: "Confirm Password",
+      withdrawPin: "Withdrawal PIN (6 Digits)",
+      referralCode: "Referral Code",
+      submitLogin: "Sign In",
+      submitRegister: "Create Account",
+      hasAccount: "Already have an account?",
+      noAccount: "Don't have an account?",
+      pinNotice: "Enter 6 digits for your PIN",
+      demoLogin: "🚀 Demo Login"
+    }
   }[lang];
 
   const handlePinChange = (index, value) => {
