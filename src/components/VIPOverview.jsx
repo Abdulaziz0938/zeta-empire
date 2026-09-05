@@ -1,12 +1,16 @@
-import { useZeta } from '../context/ZetaContext.jsx';
 import React, { useState } from 'react';
-import { Crown, Zap, ArrowLeft, Award, Users, DollarSign, Lock, CheckCircle2, TrendingUp, Calculator, Star, RefreshCw } from 'lucide-react';
+import { 
+  Crown, Zap, ArrowLeft, Award, Users, DollarSign, Lock, 
+  CheckCircle2, TrendingUp, Calculator, Star, RefreshCw 
+} from 'lucide-react';
+import { useZeta } from '../context/ZetaContext.jsx';
 
 const VIPOverview = ({ lang = 'ar', onBack }) => {
   const { user, refreshUser } = useZeta();
   const [depositInput, setDepositInput] = useState('');
   const [calculatedCommission, setCalculatedCommission] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
   const vipLevels = [
@@ -45,7 +49,6 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
     });
   };
 
-  // ===== شراء VIP (مع تحديث localStorage) =====
   const handlePurchaseVIP = async (targetLevel) => {
     if (!user) {
       alert('يرجى تسجيل الدخول أولاً');
@@ -59,7 +62,7 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
     const confirmPurchase = confirm(`هل أنت متأكد من شراء VIP ${targetLevel} مقابل $${vipPrice}؟`);
     if (!confirmPurchase) return;
 
-    setLoading(true);
+    setPurchaseLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/vip/purchase`, {
         method: 'POST',
@@ -69,43 +72,15 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
       const data = await res.json();
       if (data.success) {
         alert(`✅ ${data.message}`);
-        // ✅ تحديث بيانات المستخدم في localStorage
-        const updatedUser = {
-          ...user,
-          vipLevel: data.user.vipLevel,
-          balance: data.user.balance,
-          totalDeposit: data.user.totalDeposit
-        };
-        localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
-        // ✅ إعادة تحميل الصفحة لعرض البيانات الجديدة
-        window.location.reload();
+        // ✅ تحديث بيانات المستخدم فوراً باستخدام Context
+        await refreshUser();
       } else {
         alert(`❌ ${data.message}`);
       }
     } catch (error) {
       alert('❌ تعذر الاتصال بالخادم');
     } finally {
-      setLoading(false);
-    }
-  };
-
-  // ===== تحديث البيانات من الخادم =====
-  const refreshUserData = async () => {
-    if (!user?.phone) {
-      alert('لا يوجد مستخدم مسجل');
-      return;
-    }
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${user.phone}`);
-      const data = await res.json();
-      if (data.success) {
-        localStorage.setItem('zeta_user', JSON.stringify(data.user));
-        window.location.reload();
-      } else {
-        alert('❌ فشل تحديث البيانات');
-      }
-    } catch (error) {
-      alert('❌ تعذر الاتصال بالخادم');
+      setPurchaseLoading(false);
     }
   };
 
@@ -192,7 +167,7 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={refreshUserData}
+              onClick={refreshUser}
               className="px-4 py-2 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center gap-2"
             >
               <RefreshCw className="w-4 h-4" /> {t.refresh}
@@ -219,7 +194,7 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
             let statusColor = 'text-gray-400';
 
             if (isActive) {
-              cardStyle = 'bg-gradient-to-br from-green-500/20 to-cyan-500/10 border-green-500/60 shadow-[0_0_30px_rgba(34,197,94,0.2)]';
+              cardStyle = 'bg-gradient-to-br from-green-500/20 to-cyan-500/10 border-green-500/60 shadow-[0_0_30px_rgba(34,197,94,0.3)]';
               statusText = t.activeBadge;
               statusIcon = <Star className="w-3 h-3 fill-green-400" />;
               statusColor = 'text-green-400';
@@ -272,14 +247,20 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
                 ) : isPurchasable ? (
                   <button
                     onClick={() => handlePurchaseVIP(vip.level)}
-                    disabled={loading || !canAfford}
+                    disabled={purchaseLoading || !canAfford}
                     className={`w-full mt-4 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
-                      canAfford
+                      canAfford && !purchaseLoading
                         ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.4)] hover:shadow-[0_0_25px_rgba(250,204,21,0.6)]'
                         : 'bg-white/5 text-gray-500 cursor-not-allowed'
                     }`}
                   >
-                    {canAfford ? `${t.buyVip} ${vip.level} بـ $${vip.minDeposit}` : `${t.notEnoughBalance} ($${vip.minDeposit})`}
+                    {purchaseLoading ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : canAfford ? (
+                      `${t.buyVip} ${vip.level} بـ $${vip.minDeposit}`
+                    ) : (
+                      `${t.notEnoughBalance} ($${vip.minDeposit})`
+                    )}
                   </button>
                 ) : (
                   <button disabled className="w-full mt-4 py-2.5 rounded-xl bg-white/5 text-gray-500 font-bold text-sm border border-white/10 cursor-not-allowed flex items-center justify-center gap-2">
@@ -291,7 +272,7 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
           })}
         </div>
 
-        {/* حاسبة العائد */}
+        {/* حاسبة العائد (نفسها) */}
         <div className="bg-[#00f3ff]/[0.05] backdrop-blur-2xl border border-[#00f3ff]/20 rounded-3xl p-6 shadow-[0_0_25px_rgba(0,243,255,0.1)]">
           <div className="flex items-center gap-3 mb-4">
             <Calculator className="w-6 h-6 text-cyan-400" />
