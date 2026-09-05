@@ -1,7 +1,9 @@
+import { useZeta } from '../context/ZetaContext.jsx';
 import React, { useState } from 'react';
 import { Crown, Zap, ArrowLeft, Award, Users, DollarSign, Lock, CheckCircle2, TrendingUp, Calculator, Star, RefreshCw } from 'lucide-react';
 
-const VIPOverview = ({ user, lang = 'ar', onBack }) => {
+const VIPOverview = ({ lang = 'ar', onBack }) => {
+  const { user, refreshUser } = useZeta();
   const [depositInput, setDepositInput] = useState('');
   const [calculatedCommission, setCalculatedCommission] = useState(null);
   const [loading, setLoading] = useState(false);

@@ -1,7 +1,9 @@
+import { useZeta } from '../context/ZetaContext.jsx';
 import React, { useState, useEffect } from 'react';
 import { Play, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, Lock, RotateCcw, Clock } from 'lucide-react';
 
-const WorkPage = ({ user, lang = 'ar' }) => {
+const WorkPage = ({ lang = 'ar' }) => {
+  const { user, refreshUser } = useZeta();
   const t = {
     ar: {
       title: "مركز المهام اليومية",

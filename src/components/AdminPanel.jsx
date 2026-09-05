@@ -1,7 +1,9 @@
+import { useZeta } from '../context/ZetaContext.jsx';
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, CheckCircle2, XCircle, Clock, ArrowDownLeft, ArrowUpRight, Search, RefreshCw, TrendingUp, Users, Wallet, AlertTriangle, Eye, Copy, Check, Send, Megaphone, Crown, Award, BarChart, ListChecks, Filter, Calendar, MessageSquare, UserX, UserCheck, Edit3, Home, Zap, Moon, Sun, Lock, UserPlus, MinusCircle, PieChart, Activity } from 'lucide-react';
 
 const AdminPanel = ({ onBack, onNavigate }) => {
+  const { refreshUser } = useZeta();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');

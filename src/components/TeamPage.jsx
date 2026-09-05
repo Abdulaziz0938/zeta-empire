@@ -1,20 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  Users, 
-  UserCheck, 
-  TrendingUp, 
-  Phone, 
-  ShieldCheck, 
-  DollarSign, 
-  Share2, 
-  Copy, 
-  Check, 
-  ChevronLeft, 
-  Crown,
-  Layers
-} from 'lucide-react';
+import { Users, UserCheck, TrendingUp, Phone, ShieldCheck, DollarSign, Share2, Copy, Check, ChevronLeft, Crown, Layers } from 'lucide-react';
+import { useZeta } from '../context/ZetaContext.jsx';
 
-const TeamPage = ({ user, lang = 'ar' }) => {
+const TeamPage = ({ lang = 'ar' }) => {
+  const { user } = useZeta();
   const [activeTab, setActiveTab] = useState('A');
   const [copied, setCopied] = useState(false);
 
@@ -57,7 +46,7 @@ const TeamPage = ({ user, lang = 'ar' }) => {
     }
   }[lang];
 
-  // ✅ استخدام بيانات حقيقية من user، مع مصفوفات فارغة كقيمة افتراضية
+  // استخدام بيانات حقيقية من user
   const teamData = {
     A: user?.teamA || [],
     B: user?.teamB || [],
@@ -80,11 +69,8 @@ const TeamPage = ({ user, lang = 'ar' }) => {
   return (
     <div className={`min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-6xl mx-auto space-y-8">
-
         <div className="text-center space-y-2">
-          <h1 className="text-3xl md:text-5xl font-black tracking-wider bg-gradient-to-r from-white via-cyan-300 to-cyan-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(0,243,255,0.6)]">
-            {t.title}
-          </h1>
+          <h1 className="text-3xl md:text-5xl font-black tracking-wider bg-gradient-to-r from-white via-cyan-300 to-cyan-500 bg-clip-text text-transparent drop-shadow-[0_0_20px_rgba(0,243,255,0.6)]">{t.title}</h1>
           <p className="text-cyan-200/70 text-sm md:text-base">{t.subtitle}</p>
         </div>
 
@@ -98,11 +84,7 @@ const TeamPage = ({ user, lang = 'ar' }) => {
               <h3 className="text-2xl font-mono font-bold text-white tracking-widest">{inviteCode}</h3>
             </div>
           </div>
-
-          <button
-            onClick={handleCopy}
-            className="w-full md:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.7)] transition-all flex items-center justify-center gap-2"
-          >
+          <button onClick={handleCopy} className="w-full md:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.7)] transition-all flex items-center justify-center gap-2">
             {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
             <span>{copied ? t.copied : t.copyCode}</span>
           </button>
@@ -110,18 +92,11 @@ const TeamPage = ({ user, lang = 'ar' }) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
-            <div>
-              <p className="text-xs text-cyan-300/70 uppercase">{t.totalTeam}</p>
-              <h3 className="text-3xl font-extrabold text-white mt-1">{totalMembers} <span className="text-sm font-normal text-cyan-400">أعضاء</span></h3>
-            </div>
+            <div><p className="text-xs text-cyan-300/70 uppercase">{t.totalTeam}</p><h3 className="text-3xl font-extrabold text-white mt-1">{totalMembers} <span className="text-sm font-normal text-cyan-400">أعضاء</span></h3></div>
             <Users className="w-12 h-12 text-[#00f3ff] drop-shadow-[0_0_12px_#00f3ff]" />
           </div>
-
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
-            <div>
-              <p className="text-xs text-cyan-300/70 uppercase">{t.totalPassive}</p>
-              <h3 className="text-3xl font-extrabold text-green-400 mt-1">${totalPassiveEarnings.toFixed(2)}</h3>
-            </div>
+            <div><p className="text-xs text-cyan-300/70 uppercase">{t.totalPassive}</p><h3 className="text-3xl font-extrabold text-green-400 mt-1">${totalPassiveEarnings.toFixed(2)}</h3></div>
             <TrendingUp className="w-12 h-12 text-green-400 drop-shadow-[0_0_12px_#22c55e]" />
           </div>
         </div>
@@ -132,19 +107,9 @@ const TeamPage = ({ user, lang = 'ar' }) => {
             { key: 'B', name: t.classB, count: teamData.B.length, priority: false },
             { key: 'C', name: t.classC, count: teamData.C.length, priority: false }
           ].map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
-                activeTab === tab.key
-                  ? 'bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 shadow-[0_0_20px_rgba(0,243,255,0.5)]'
-                  : 'text-gray-400 hover:text-white hover:bg-white/5'
-              }`}
-            >
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === tab.key ? 'bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 shadow-[0_0_20px_rgba(0,243,255,0.5)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <span>{tab.name}</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs ${activeTab === tab.key ? 'bg-slate-950 text-[#00f3ff]' : 'bg-white/10 text-white'}`}>
-                {tab.count}
-              </span>
+              <span className={`px-2 py-0.5 rounded-full text-xs ${activeTab === tab.key ? 'bg-slate-950 text-[#00f3ff]' : 'bg-white/10 text-white'}`}>{tab.count}</span>
             </button>
           ))}
         </div>
@@ -152,7 +117,7 @@ const TeamPage = ({ user, lang = 'ar' }) => {
         {activeTab === 'A' && (
           <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 flex items-center gap-3 text-cyan-300 text-sm">
             <Crown className="w-5 h-5 text-yellow-400 drop-shadow-[0_0_8px_#fde047]" />
-            <span>{t.priorityBadge}: الأعضاء المباشرين يمنحونك **5%** دخل سلبي يومي من إجمالي أرباح مهامهم.</span>
+            <span>{t.priorityBadge}: الأعضاء المباشرين يمنحونك 5% دخل سلبي يومي من إجمالي أرباح مهامهم.</span>
           </div>
         )}
 
@@ -164,10 +129,7 @@ const TeamPage = ({ user, lang = 'ar' }) => {
             </div>
           ) : (
             teamData[activeTab].map((member) => (
-              <div 
-                key={member.id}
-                className="bg-[#00f3ff]/[0.04] backdrop-blur-xl border border-[#00f3ff]/20 hover:border-[#00f3ff] rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_15px_rgba(0,243,255,0.05)] hover:shadow-[0_0_25px_rgba(0,243,255,0.2)]"
-              >
+              <div key={member.id} className="bg-[#00f3ff]/[0.04] backdrop-blur-xl border border-[#00f3ff]/20 hover:border-[#00f3ff] rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_15px_rgba(0,243,255,0.05)] hover:shadow-[0_0_25px_rgba(0,243,255,0.2)]">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
                     <Phone className="w-5 h-5" />
@@ -177,31 +139,15 @@ const TeamPage = ({ user, lang = 'ar' }) => {
                     <p className="text-lg font-mono font-bold text-white">{member.phone}</p>
                   </div>
                 </div>
-
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full md:w-auto text-center md:text-right">
-                  <div>
-                    <p className="text-xs text-gray-400">{t.vipLevel}</p>
-                    <span className="inline-block mt-0.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 font-bold text-xs">
-                      VIP {member.vip}
-                    </span>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-gray-400">{t.contractAmount}</p>
-                    <p className="text-base font-bold text-white mt-0.5">${member.deposit}</p>
-                  </div>
-
-                  <div className="col-span-2 md:col-span-1">
-                    <p className="text-xs text-gray-400">{t.passiveEarned}</p>
-                    <p className="text-base font-extrabold text-green-400 mt-0.5">+${member.passiveProfit.toFixed(2)}</p>
-                  </div>
+                  <div><p className="text-xs text-gray-400">{t.vipLevel}</p><span className="inline-block mt-0.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 font-bold text-xs">VIP {member.vip}</span></div>
+                  <div><p className="text-xs text-gray-400">{t.contractAmount}</p><p className="text-base font-bold text-white mt-0.5">${member.deposit}</p></div>
+                  <div className="col-span-2 md:col-span-1"><p className="text-xs text-gray-400">{t.passiveEarned}</p><p className="text-base font-extrabold text-green-400 mt-0.5">+${member.passiveProfit.toFixed(2)}</p></div>
                 </div>
-
               </div>
             ))
           )}
         </div>
-
       </div>
     </div>
   );

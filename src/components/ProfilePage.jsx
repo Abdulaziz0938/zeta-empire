@@ -1,3 +1,4 @@
+import { useZeta } from '../context/ZetaContext.jsx';
 import React, { useState } from 'react';
 import { 
   Wallet, 
@@ -16,7 +17,8 @@ import {
   Globe
 } from 'lucide-react';
 
-const ProfilePage = ({ user, lang = 'ar', setLang }) => {
+const ProfilePage = ({ lang = 'ar', setLang }) => {
+  const { user } = useZeta();
   const [activeTab, setActiveTab] = useState('all');
 
   const t = {

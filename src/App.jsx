@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Home, CheckSquare, Users, User, Wallet, ShieldAlert, 
   ArrowDownLeft, ArrowUpRight, Crown
@@ -12,48 +12,17 @@ import ProfilePage from './components/ProfilePage.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
 import FinanceModal from './components/FinanceModal.jsx';
 import LiveToastSystem from './components/LiveToastSystem.jsx';
+import { useZeta } from './context/ZetaContext.jsx';
 
 const App = () => {
-  const savedUser = localStorage.getItem('zeta_user');
-  const initialUser = savedUser ? JSON.parse(savedUser) : null;
-
-  const [isLoggedIn, setIsLoggedIn] = useState(!!initialUser);
-  const [user, setUser] = useState(initialUser);
+  const { user, isLoggedIn, login, logout, refreshUser } = useZeta();
   const [activeScreen, setActiveScreen] = useState('home');
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
   const [financeTab, setFinanceTab] = useState('deposit');
   const [lang, setLang] = useState('ar');
 
-  const handleAuthSuccess = (userData) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-    localStorage.setItem('zeta_user', JSON.stringify(userData));
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    localStorage.removeItem('zeta_user');
-  };
-
-  const refreshUserData = async () => {
-    if (!user?.phone) return;
-    const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
-    try {
-      const res = await fetch(`${API_BASE}/api/users/${user.phone}`);
-      const data = await res.json();
-      if (data.success) {
-        const updatedUser = data.user;
-        setUser(updatedUser);
-        localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
-      }
-    } catch (error) {
-      console.error('❌ فشل تحديث بيانات المستخدم:', error);
-    }
-  };
-
   if (!isLoggedIn || !user) {
-    return <AuthPortal onAuthSuccess={handleAuthSuccess} lang={lang} setLang={setLang} />;
+    return <AuthPortal onAuthSuccess={login} lang={lang} setLang={setLang} />;
   }
 
   const openFinance = (tab = 'deposit') => {
@@ -66,24 +35,21 @@ const App = () => {
       
       <LiveToastSystem user={user} />
 
-      {/* ✅ إضافة key لإعادة تهيئة النافذة عند تغيير التبويب */}
       <FinanceModal 
-        key={isFinanceOpen ? financeTab : 'closed'} 
+        key={isFinanceOpen ? financeTab : 'closed'}
         isOpen={isFinanceOpen} 
         onClose={() => setIsFinanceOpen(false)} 
         user={user}
         balance={user?.balance || 0}
         initialTab={financeTab}
-        onTransactionSuccess={refreshUserData}
+        onTransactionSuccess={refreshUser}
       />
 
       <header className="sticky top-0 z-40 bg-[#030914]/80 backdrop-blur-xl border-b border-[#00f3ff]/20 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#00f3ff] to-cyan-500 p-0.5 shadow-[0_0_15px_#00f3ff]">
-              <div className="w-full h-full bg-[#030914] rounded-[14px] flex items-center justify-center font-black text-cyan-300 text-sm">
-                ZE
-              </div>
+              <div className="w-full h-full bg-[#030914] rounded-[14px] flex items-center justify-center font-black text-cyan-300 text-sm">ZE</div>
             </div>
             <div>
               <h1 className="text-base font-black text-white tracking-wider">ZETA EMPIRE</h1>
@@ -115,7 +81,7 @@ const App = () => {
             )}
 
             <button
-              onClick={handleLogout}
+              onClick={logout}
               className="px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all text-xs font-bold"
             >
               خروج
@@ -125,7 +91,6 @@ const App = () => {
       </header>
 
       <main className="max-w-6xl mx-auto p-4">
-        
         {activeScreen === 'home' && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="bg-gradient-to-r from-[#00f3ff]/20 via-cyan-900/30 to-slate-900/90 backdrop-blur-2xl border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_30px_rgba(0,243,255,0.15)] flex flex-col md:flex-row justify-between items-center gap-6">
@@ -184,32 +149,21 @@ const App = () => {
           </div>
         )}
 
-        {activeScreen === 'tasks' && <WorkPage user={user} lang={lang} />}
-        {activeScreen === 'team' && <TeamPage user={user} lang={lang} />}
-        {activeScreen === 'profile' && <ProfilePage user={user} lang={lang} setLang={setLang} />}
-        
-        {activeScreen === 'vip' && (
-          <VIPOverview user={user} lang={lang} onBack={() => setActiveScreen('home')} />
-        )}
-
+        {activeScreen === 'tasks' && <WorkPage lang={lang} />}
+        {activeScreen === 'team' && <TeamPage lang={lang} />}
+        {activeScreen === 'profile' && <ProfilePage lang={lang} setLang={setLang} />}
+        {activeScreen === 'vip' && <VIPOverview lang={lang} onBack={() => setActiveScreen('home')} />}
         {activeScreen === 'admin' && user?.isAdmin === true && (
-          <AdminPanel onBack={() => setActiveScreen('home')} onNavigate={(screen) => setActiveScreen(screen)} />
+          <AdminPanel onBack={() => setActiveScreen('home')} onNavigate={setActiveScreen} />
         )}
-
         {activeScreen === 'admin' && user?.isAdmin !== true && (
           <div className="text-center py-20">
             <ShieldAlert className="w-20 h-20 text-red-500 mx-auto mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.5)]" />
             <h2 className="text-2xl font-bold text-red-400">🚫 غير مصرح لك!</h2>
             <p className="text-gray-400 mt-2">هذه الصفحة مخصصة للمديرين فقط.</p>
-            <button 
-              onClick={() => setActiveScreen('home')}
-              className="mt-4 px-6 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-sm hover:bg-cyan-500/30 transition-all"
-            >
-              العودة إلى الرئيسية
-            </button>
+            <button onClick={() => setActiveScreen('home')} className="mt-4 px-6 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-sm hover:bg-cyan-500/30 transition-all">العودة إلى الرئيسية</button>
           </div>
         )}
-
       </main>
 
       <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-lg bg-[#030914]/80 backdrop-blur-2xl border border-[#00f3ff]/40 rounded-3xl p-2 shadow-[0_0_35px_rgba(0,243,255,0.2)]">
@@ -239,7 +193,6 @@ const App = () => {
           })}
         </div>
       </nav>
-
     </div>
   );
 };
