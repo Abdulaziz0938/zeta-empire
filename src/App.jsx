@@ -23,6 +23,7 @@ const App = () => {
 
   const [activeScreen, setActiveScreen] = useState('home');
   const [isFinanceOpen, setIsFinanceOpen] = useState(false);
+  const [financeTab, setFinanceTab] = useState('deposit'); // ✅ لتحديد التبويب الافتراضي
   const [lang, setLang] = useState('ar');
 
   // ===== دالة تسجيل الدخول (حفظ الجلسة) =====
@@ -62,16 +63,23 @@ const App = () => {
     return <AuthPortal onAuthSuccess={handleAuthSuccess} lang={lang} setLang={setLang} />;
   }
 
+  // ===== دوال فتح النافذة مع تحديد التبويب =====
+  const openFinance = (tab = 'deposit') => {
+    setFinanceTab(tab);
+    setIsFinanceOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-[#030914] text-white font-sans relative pb-28" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       
-     <LiveToastSystem user={user} />
+      <LiveToastSystem user={user} />
 
       <FinanceModal 
         isOpen={isFinanceOpen} 
         onClose={() => setIsFinanceOpen(false)} 
         user={user}
         balance={user?.balance || 0}
+        initialTab={financeTab} // ✅ تمرير التبويب المطلوب
         onTransactionSuccess={() => {
           console.log('✅ تمت المعاملة بنجاح، جاري تحديث البيانات...');
           refreshUserData();
@@ -94,14 +102,13 @@ const App = () => {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsFinanceOpen(true)}
+              onClick={() => openFinance('deposit')} // ✅ يفتح على الإيداع
               className="px-3 py-1.5 rounded-xl bg-[#00f3ff]/10 border border-[#00f3ff]/40 text-cyan-300 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,243,255,0.2)] hover:bg-[#00f3ff]/20 transition-all"
             >
               <Wallet className="w-4 h-4 text-[#00f3ff]" />
               <span className="font-mono">${(user?.balance || 0).toFixed(2)}</span>
             </button>
 
-            {/* زر الأدمن يظهر فقط للمدير الفائق */}
             {user?.isAdmin === true && (
               <button
                 onClick={() => setActiveScreen(activeScreen === 'admin' ? 'home' : 'admin')}
@@ -116,7 +123,6 @@ const App = () => {
               </button>
             )}
 
-            {/* زر تسجيل الخروج */}
             <button
               onClick={handleLogout}
               className="px-3 py-1.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all text-xs font-bold"
@@ -142,13 +148,13 @@ const App = () => {
 
               <div className="flex gap-3 w-full md:w-auto">
                 <button
-                  onClick={() => setIsFinanceOpen(true)}
+                  onClick={() => openFinance('deposit')} // ✅ يفتح على الإيداع
                   className="flex-1 md:flex-none px-6 py-3 rounded-2xl bg-[#00f3ff] text-slate-950 font-black text-xs shadow-[0_0_20px_rgba(0,243,255,0.4)] flex items-center justify-center gap-2"
                 >
                   <ArrowDownLeft className="w-4 h-4" /> إيداع
                 </button>
                 <button
-                  onClick={() => setIsFinanceOpen(true)}
+                  onClick={() => openFinance('withdraw')} // ✅ يفتح على السحب
                   className="flex-1 md:flex-none px-6 py-3 rounded-2xl bg-orange-500 text-white font-black text-xs shadow-[0_0_20px_rgba(249,115,22,0.4)] flex items-center justify-center gap-2"
                 >
                   <ArrowUpRight className="w-4 h-4" /> سحب
@@ -156,7 +162,6 @@ const App = () => {
               </div>
             </div>
 
-            {/* زر VIP */}
             <div className="flex justify-center">
               <button
                 onClick={() => setActiveScreen('vip')}
@@ -167,7 +172,6 @@ const App = () => {
               </button>
             </div>
 
-            {/* الإحصائيات السريعة */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-2xl p-4 text-center">
                 <p className="text-[11px] text-gray-400">أرباح اليوم</p>

@@ -4,8 +4,8 @@ import {
   ShieldCheck, AlertCircle, Clock, Info, Wallet, User 
 } from 'lucide-react';
 
-const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
-  const [activeTab, setActiveTab] = useState('deposit');
+const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposit', onTransactionSuccess }) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [network, setNetwork] = useState('TRC20');
   const [amount, setAmount] = useState('');
   const [address, setAddress] = useState('');
@@ -20,12 +20,24 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
   
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
-  // ✅ إعادة تعيين الشبكة عند التبديل بين التبويبات
+  // ✅ ضبط التبويب عند فتح النافذة (أو تغير initialTab)
   useEffect(() => {
-    if (activeTab === 'deposit' && network === 'ShamCash') {
-      setNetwork('TRC20');
+    if (isOpen) {
+      setActiveTab(initialTab);
+      // إعادة تعيين الحقول
+      setAmount('');
+      setAddress('');
+      setTxHash('');
+      setShamCashName('');
+      setShamCashAddress('');
+      setSuccessMsg('');
+      // إذا كان التبويب سحب ولم تكن الشبكة ShamCash، نتركها كما هي
+      // ولكن نضمن أن تكون الشبكة مناسبة للتبويب
+      if (initialTab === 'deposit' && network === 'ShamCash') {
+        setNetwork('TRC20');
+      }
     }
-  }, [activeTab, network]);
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
@@ -69,6 +81,13 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
   const depositNetworks = ['TRC20', 'BEP20'];
   const withdrawNetworks = ['TRC20', 'BEP20', 'ShamCash'];
   const currentNetworks = activeTab === 'deposit' ? depositNetworks : withdrawNetworks;
+
+  // عند تغيير التبويب، نعيد تعيين الشبكة إلى TRC20 إذا كانت ShamCash غير مسموحة
+  useEffect(() => {
+    if (activeTab === 'deposit' && network === 'ShamCash') {
+      setNetwork('TRC20');
+    }
+  }, [activeTab, network]);
 
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
@@ -160,6 +179,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
         // إعادة تعيين الحقول الخاصة بـ Sham Cash
         setShamCashName('');
         setShamCashAddress('');
+        if (onTransactionSuccess) onTransactionSuccess();
         setTimeout(() => {
           setSuccessMsg('');
           onClose();
