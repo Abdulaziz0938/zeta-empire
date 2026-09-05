@@ -1,4 +1,4 @@
-// server/index.js - النسخة النهائية المعدلة
+// server/index.js - النسخة النهائية المستقرة (جميع الإصلاحات)
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -106,8 +106,19 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const existingUser = await User.findOne({ phone: userData.phone });
     if (existingUser) return res.status(400).json({ success: false, message: 'رقم الهاتف مسجل بالفعل' });
+    
     const newUser = new User(userData);
     await newUser.save();
+
+    // زيادة الإحالات للمُشير إذا وُجد كود دعوة
+    if (userData.referralCode) {
+      const referrer = await User.findOne({ inviteCode: userData.referralCode });
+      if (referrer) {
+        referrer.referrals = (referrer.referrals || 0) + 1;
+        await referrer.save();
+      }
+    }
+
     const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
     const userDataResponse = newUser.toObject();
     delete userDataResponse.password;
@@ -174,13 +185,8 @@ app.get('/api/transactions/user/:userId', async (req, res) => {
 // ✅ الإشعارات
 // ============================================================
 
-
-
-
-
 app.get('/api/notifications', async (req, res) => {
   try {
-    // جلب آخر 10 إشعارات (عامة + الخاصة بالمستخدم إذا كان مسجلاً)
     const userId = req.query.userId;
     let filter = { targetUserId: null };
     if (userId) {
@@ -195,8 +201,18 @@ app.get('/api/notifications', async (req, res) => {
   }
 });
 
+// ============================================================
+// ✅ سجل الإجراءات (للأدمن)
+// ============================================================
 
-
+app.get('/api/admin/audit', async (req, res) => {
+  try {
+    const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(50);
+    res.json({ success: true, logs });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
 
 // ============================================================
 // ✅ إدارة الأدمن
@@ -262,7 +278,7 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
 });
 
 // ============================================================
-// ✅ قبول ورفض الطلبات (مع تحديث الرصيد ومنع التكرار)
+// ✅ قبول ورفض الطلبات (مع منع التكرار)
 // ============================================================
 
 app.put('/api/admin/approve/:txId', async (req, res) => {
@@ -308,7 +324,6 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
       newBalance: user.balance
     });
 
-    // ✅ إعادة بيانات المستخدم المحدثة بالكامل
     const userData = user.toObject();
     delete userData.password;
 
@@ -359,27 +374,9 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
   }
 });
 
-
-
-// ===== سجل الإجراءات (للأدمن) =====
-app.get('/api/admin/audit', async (req, res) => {
-  try {
-    const AuditLog = require('./models/AuditLog');
-    const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(50);
-    res.json({ success: true, logs });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-
 // ============================================================
 // ✅ الإشعارات والإدارة
 // ============================================================
-
-
-
 
 app.post('/api/admin/notify/:userId', async (req, res) => {
   const { message } = req.body;
@@ -390,7 +387,6 @@ app.post('/api/admin/notify/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
 
-    // حفظ الإشعار للمستخدم المحدد
     const notification = new Notification({
       message: message.trim(),
       type: 'info',
@@ -407,72 +403,75 @@ app.post('/api/admin/notify/:userId', async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
 app.post('/api/admin/notify-all', async (req, res) => {
   const { message } = req.body;
   if (!message || !message.trim()) {
     return res.status(400).json({ success: false, message: 'الرجاء كتابة رسالة' });
   }
   try {
-    // حفظ الإشعار في قاعدة البيانات
     const notification = new Notification({
       message: message.trim(),
       type: 'info',
       sender: 'المدير الفائق',
-      targetUserId: null // للجميع
+      targetUserId: null
     });
     await notification.save();
-
-    // تسجيل في سجل التدقيق
-    await saveAuditLog('المدير الفائق', 'إرسال إشعار جماعي', { message, count: 1 });
-
+    await saveAuditLog('المدير الفائق', 'إرسال إشعار جماعي', { message });
     res.json({ success: true, message: 'تم إرسال الإشعار لجميع المستخدمين' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-
-
-
 // ============================================================
-// ✅ شراء VIP (يدوي)
+// ✅ شراء VIP (نسخة آمنة تماماً - Atomic + منع خفض المستوى)
 // ============================================================
-
 app.post('/api/vip/purchase', async (req, res) => {
   const { userId, vipLevel } = req.body;
   try {
-    const user = await User.findById(userId);
-    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-
     const vipPrices = { 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };
-    if (!vipPrices[vipLevel]) return res.status(400).json({ success: false, message: 'مستوى VIP غير صحيح' });
-    if (vipLevel <= user.vipLevel) {
-      return res.status(400).json({ success: false, message: `أنت تمتلك VIP ${user.vipLevel} بالفعل!` });
+    if (!vipPrices[vipLevel]) {
+      return res.status(400).json({ success: false, message: 'مستوى VIP غير صحيح' });
     }
 
     const totalCost = vipPrices[vipLevel];
-    const currentBalance = Number(user.balance) || 0;
 
-    console.log(`🔍 المستخدم ${user.fullName}: الرصيد = ${currentBalance}, المطلوب = ${totalCost}`);
+    // عملية ذرية مع شرطين: رصيد كافٍ + المستوى المطلوب أعلى من الحالي
+    const user = await User.findOneAndUpdate(
+      { 
+        _id: userId, 
+        balance: { $gte: totalCost },
+        vipLevel: { $lt: vipLevel }
+      },
+      {
+        $inc: { 
+          balance: -totalCost,
+          totalDeposit: totalCost
+        },
+        $set: { vipLevel: vipLevel }
+      },
+      { new: true }
+    );
 
-    if (currentBalance < totalCost) {
-      return res.status(400).json({
-        success: false,
-        message: `الرصيد غير كافٍ. رصيدك: $${currentBalance.toFixed(2)}, المطلوب: $${totalCost}`
-      });
+    if (!user) {
+      const existing = await User.findById(userId);
+      if (!existing) {
+        return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+      }
+      if (existing.vipLevel >= vipLevel) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `أنت بالفعل في VIP ${existing.vipLevel} أو أعلى!` 
+        });
+      }
+      if (existing.balance < totalCost) {
+        return res.status(400).json({ 
+          success: false, 
+          message: `الرصيد غير كافٍ. رصيدك: $${existing.balance}, المطلوب: $${totalCost}` 
+        });
+      }
+      return res.status(400).json({ success: false, message: 'حدث خطأ غير متوقع' });
     }
-
-    user.balance = currentBalance - totalCost;
-    user.vipLevel = vipLevel;
-    user.totalDeposit = (Number(user.totalDeposit) || 0) + totalCost;
-    await user.save();
 
     const transaction = new Transaction({
       userId: user._id,
@@ -483,20 +482,25 @@ app.post('/api/vip/purchase', async (req, res) => {
       network: 'SYSTEM',
       fee: 0,
       status: 'approved',
-      note: `شراء VIP ${vipLevel} (بقيمة $${totalCost})`
+      note: `شراء VIP ${vipLevel} (بخصم $${totalCost})`
     });
     await transaction.save();
-    await saveAuditLog('النظام', `شراء VIP ${vipLevel} من ${user.fullName}`, { userId: user._id, amount: totalCost, newVIP: vipLevel });
 
     const userData = user.toObject();
     delete userData.password;
 
     res.json({
       success: true,
-      message: `تم شراء VIP ${vipLevel} بنجاح!`,
-      user: { vipLevel: userData.vipLevel, balance: userData.balance, totalDeposit: userData.totalDeposit }
+      message: `✅ تم شراء VIP ${vipLevel} بنجاح!`,
+      user: { 
+        vipLevel: userData.vipLevel, 
+        balance: userData.balance, 
+        totalDeposit: userData.totalDeposit 
+      }
     });
+
   } catch (error) {
+    console.error('❌ خطأ في شراء VIP:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
