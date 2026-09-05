@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, TrendingUp, Share2, Copy, Check, Crown } from 'lucide-react';
+import { Users, TrendingUp, Share2, Copy, Check, Crown, User, Phone, DollarSign } from 'lucide-react';
 import { useZeta } from '../context/ZetaContext.jsx';
 
 const TeamPage = ({ lang = 'ar' }) => {
@@ -7,6 +7,7 @@ const TeamPage = ({ lang = 'ar' }) => {
   const [activeTab, setActiveTab] = useState('A');
   const [copied, setCopied] = useState(false);
   const [teamData, setTeamData] = useState({ A: [], B: [], C: [] });
+  const [loading, setLoading] = useState(true);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
   const t = {
@@ -27,7 +28,8 @@ const TeamPage = ({ lang = 'ar' }) => {
       passiveEarned: "الدخل السلبي منه",
       noMembers: "لا يوجد أعضاء في هذه الفئة حالياً",
       priorityBadge: "أولوية مباشرة",
-      totalReferrals: "إجمالي الإحالات"
+      totalReferrals: "إجمالي الإحالات",
+      loading: "جاري تحميل بيانات الفريق..."
     },
     en: {
       title: "Team Tree & Passive Income",
@@ -46,22 +48,35 @@ const TeamPage = ({ lang = 'ar' }) => {
       passiveEarned: "Passive Profit",
       noMembers: "No members found in this class yet",
       priorityBadge: "Direct Priority",
-      totalReferrals: "Total Referrals"
+      totalReferrals: "Total Referrals",
+      loading: "Loading team data..."
     }
   }[lang];
 
   // ✅ جلب بيانات الفريق من الخادم
   const fetchTeamData = async () => {
-    if (!user?._id && !user?.id) return;
+    if (!user?._id && !user?.id) {
+      setLoading(false);
+      return;
+    }
     const userId = user._id || user.id;
     try {
+      setLoading(true);
       const res = await fetch(`${API_BASE}/api/team/${userId}`);
       const data = await res.json();
       if (data.success) {
-        setTeamData(data.team);
+        setTeamData({
+          A: data.team.A || [],
+          B: data.team.B || [],
+          C: data.team.C || []
+        });
+      } else {
+        console.warn('⚠️ فشل جلب بيانات الفريق:', data.message);
       }
     } catch (error) {
       console.error('❌ فشل جلب بيانات الفريق:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -80,10 +95,19 @@ const TeamPage = ({ lang = 'ar' }) => {
   const totalMembers = teamData.A.length + teamData.B.length + teamData.C.length;
   const totalPassiveEarnings = [
     ...teamData.A, ...teamData.B, ...teamData.C
-  ].reduce((acc, m) => acc + (m.passiveProfit || 0), 0);
-
-  // ✅ عرض عدد الإحالات من user
+  ].reduce((acc, m) => acc + (m.totalDeposit ? m.totalDeposit * 0.05 : 0), 0);
   const totalReferrals = user?.referrals || 0;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#030914] text-white flex items-center justify-center p-8">
+        <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-cyan-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-400">{t.loading}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -155,7 +179,7 @@ const TeamPage = ({ lang = 'ar' }) => {
               <div key={idx} className="bg-[#00f3ff]/[0.04] backdrop-blur-xl border border-[#00f3ff]/20 hover:border-[#00f3ff] rounded-2xl p-5 transition-all duration-300 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_15px_rgba(0,243,255,0.05)] hover:shadow-[0_0_25px_rgba(0,243,255,0.2)]">
                 <div className="flex items-center gap-4 w-full md:w-auto">
                   <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                    <Users className="w-5 h-5" />
+                    <User className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">{t.phone}</p>
@@ -163,9 +187,9 @@ const TeamPage = ({ lang = 'ar' }) => {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full md:w-auto text-center md:text-right">
-                  <div><p className="text-xs text-gray-400">{t.vipLevel}</p><span className="inline-block mt-0.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 font-bold text-xs">VIP {member.vipLevel}</span></div>
-                  <div><p className="text-xs text-gray-400">{t.contractAmount}</p><p className="text-base font-bold text-white mt-0.5">${member.totalDeposit}</p></div>
-                  <div className="col-span-2 md:col-span-1"><p className="text-xs text-gray-400">{t.passiveEarned}</p><p className="text-base font-extrabold text-green-400 mt-0.5">+${(member.totalDeposit * 0.05).toFixed(2)}</p></div>
+                  <div><p className="text-xs text-gray-400">{t.vipLevel}</p><span className="inline-block mt-0.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/30 text-yellow-400 font-bold text-xs">VIP {member.vipLevel || 0}</span></div>
+                  <div><p className="text-xs text-gray-400">{t.contractAmount}</p><p className="text-base font-bold text-white mt-0.5">${member.totalDeposit || 0}</p></div>
+                  <div className="col-span-2 md:col-span-1"><p className="text-xs text-gray-400">{t.passiveEarned}</p><p className="text-base font-extrabold text-green-400 mt-0.5">+${((member.totalDeposit || 0) * 0.05).toFixed(2)}</p></div>
                 </div>
               </div>
             ))

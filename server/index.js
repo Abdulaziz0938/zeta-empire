@@ -62,30 +62,41 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-app.get('/api/users/:phone', async (req, res) => {
-  try {
-    const user = await User.findOne({ phone: req.params.phone });
-    if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
-    const userData = user.toObject();
-    delete userData.password;
-    res.json({ success: true, user: userData });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
 
+
+
+// ===== جلب بيانات الفريق (مع populate) =====
 app.get('/api/team/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
       .populate('parentA', 'fullName phone vipLevel balance totalDeposit')
       .populate('parentB', 'fullName phone vipLevel balance totalDeposit')
       .populate('parentC', 'fullName phone vipLevel balance totalDeposit');
-    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-    res.json({ success: true, team: { A: user.parentA || [], B: user.parentB || [], C: user.parentC || [] } });
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    }
+
+    // تحويل البيانات إلى مصفوفات
+    const team = {
+      A: user.parentA || [],
+      B: user.parentB || [],
+      C: user.parentC || []
+    };
+
+    res.json({ success: true, team });
   } catch (error) {
+    console.error('❌ خطأ في جلب بيانات الفريق:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
+
+
+
+
+
 
 app.post('/api/auth/login', async (req, res) => {
   const { phone, password } = req.body;
