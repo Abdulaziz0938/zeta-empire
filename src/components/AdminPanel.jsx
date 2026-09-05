@@ -9,6 +9,7 @@ import {
 import { useZeta } from '../context/ZetaContext.jsx';
 
 const AdminPanel = ({ onBack, onNavigate }) => {
+  // ===== الحالات =====
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
@@ -29,7 +30,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // ✅ استخدام الرابط الصحيح للخادم
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+  console.log('📡 AdminPanel يستخدم API_BASE:', API_BASE);
   
   const { refreshUser, updateUser, user: currentUser } = useZeta();
 
@@ -37,8 +41,12 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      console.log('🔄 جلب المستخدمين...');
       const usersRes = await fetch(`${API_BASE}/api/users`);
+      console.log('✅ استجابة المستخدمين:', usersRes.status);
       const usersData = await usersRes.json();
+      console.log('📦 بيانات المستخدمين:', usersData);
+      
       if (usersData.success) {
         setUsers(usersData.users);
       } else {
@@ -46,6 +54,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         setUsers([]);
       }
 
+      console.log('🔄 جلب المعاملات...');
       const txsRes = await fetch(`${API_BASE}/api/transactions`);
       const txsData = await txsRes.json();
       if (txsData.success) {
@@ -56,6 +65,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       }
 
       try {
+        console.log('🔄 جلب سجل الإجراءات...');
         const auditRes = await fetch(`${API_BASE}/api/admin/audit`);
         const auditData = await auditRes.json();
         if (auditData.success) {
@@ -69,23 +79,26 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       }
 
       setLastUpdated(new Date());
+      console.log('✅ تم تحديث البيانات بنجاح');
     } catch (error) {
       console.error('❌ فشل جلب البيانات:', error);
       setUsers([]);
       setTransactions([]);
       setAuditLogs([]);
+      alert('⚠️ تعذر جلب البيانات من الخادم. تأكد من تشغيل الخادم الخلفي.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ===== تحميل البيانات عند تحميل الصفحة =====
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // ===== تحديث المستخدم الحالي إذا كان هو نفسه =====
+  // ===== تحديث المستخدم الحالي =====
   const updateCurrentUserIfMatch = (userData) => {
     if (!userData || !currentUser) return;
     const updatedId = String(userData._id || userData.id || '');
@@ -97,7 +110,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ===== قبول طلب =====
+  // ===== دوال الإجراءات (قبول، رفض، ترقية، تخفيض، تجميد، تعديل الرصيد) =====
   const handleApprove = async (txId) => {
     if (!confirm('✅ تأكيد قبول الطلب؟')) return;
     try {
@@ -106,7 +119,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         headers: { 'Content-Type': 'application/json' }
       });
       const data = await res.json();
-
       if (data.success) {
         alert('✅ تم قبول الطلب بنجاح');
         updateCurrentUserIfMatch(data.user);
@@ -128,7 +140,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ===== رفض طلب =====
   const handleReject = async (txId) => {
     if (!confirm('❌ تأكيد رفض الطلب؟')) return;
     try {
@@ -157,7 +168,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     }
   };
 
-  // ===== رفع VIP =====
   const handlePromoteVip = async (userId) => {
     if (!confirm('تأكيد رفع مستوى VIP؟')) return;
     try {
@@ -171,7 +181,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     } catch (error) { alert('❌ خطأ في الاتصال'); }
   };
 
-  // ===== تخفيض VIP =====
   const handleDemoteVip = async (userId) => {
     if (!confirm('⚠️ تأكيد تخفيض مستوى VIP؟')) return;
     try {
@@ -185,7 +194,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     } catch (error) { alert('❌ خطأ في الاتصال'); }
   };
 
-  // ===== تجميد / إلغاء تجميد =====
   const handleToggleBan = async (userId) => {
     if (!confirm('تأكيد تغيير حالة الحساب؟')) return;
     try {
@@ -199,7 +207,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     } catch (error) { alert('❌ خطأ في الاتصال'); }
   };
 
-  // ===== تعديل الرصيد =====
   const handleEditBalance = (user) => {
     setEditBalanceUser(user);
     setEditAmount('');
@@ -274,7 +281,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     } catch (error) { alert('❌ خطأ في الاتصال'); }
   };
 
-  // ===== دوال العرض =====
+  // ===== دوال العرض والتصفية =====
   const getUserBadge = (user) => {
     const count = user.referrals || 0;
     if (count >= 20) return { icon: '👑', label: 'ملك التسويق' };
@@ -340,6 +347,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const borderColor = isDarkMode ? 'border-[#00f3ff]/20' : 'border-gray-300/40';
   const inputBg = isDarkMode ? 'bg-white/5' : 'bg-white/80';
 
+  // ===== واجهة المستخدم =====
   return (
     <div className={`min-h-screen ${bgColor} ${textColor} p-4 md:p-6 font-sans transition-colors duration-300`} dir="rtl">
       {isDarkMode && (
@@ -373,8 +381,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
             <button onClick={() => setIsNotificationModalOpen(true)} className="px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(0,243,255,0.3)] hover:shadow-[0_0_25px_rgba(0,243,255,0.6)] transition-all flex items-center gap-2">
               <Megaphone className="w-4 h-4" /> إشعار للكل
             </button>
+            <button onClick={fetchData} className="px-4 py-2 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-bold text-xs hover:bg-cyan-500/30 transition-all flex items-center gap-2">
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              تحديث البيانات
+            </button>
             <div className="px-3 py-2 rounded-2xl bg-yellow-500/10 border border-yellow-500/30 flex items-center gap-2 text-xs font-bold text-yellow-400">
-              <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">معلقة: {pendingTx}</span>
             </div>
           </div>
@@ -427,7 +438,9 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           })}
         </div>
 
-        {/* المحتوى – نظرة عامة */}
+        {/* المحتوى – اختصار للتبويبات (نفس الكود السابق) */}
+
+        {/* نظرة عامة */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6`}>
@@ -524,7 +537,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ===== المعاملات ===== */}
+        {/* المعاملات */}
         {activeTab === 'transactions' && (
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-4 md:p-6 space-y-4`}>
             <div className="flex flex-col md:flex-row gap-3 flex-wrap">
@@ -575,7 +588,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ===== المستخدمين ===== */}
+        {/* المستخدمين */}
         {activeTab === 'users' && (
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-4 md:p-6 space-y-4`}>
             <div className="flex flex-col md:flex-row gap-3 justify-between">
@@ -622,7 +635,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ===== التسويق ===== */}
+        {/* التسويق */}
         {activeTab === 'referrals' && (
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 space-y-4`}>
             <div className="flex justify-between items-center">
@@ -652,7 +665,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ===== سجل الإجراءات ===== */}
+        {/* سجل الإجراءات */}
         {activeTab === 'audit' && (
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 space-y-4`}>
             <h3 className={`text-xl font-bold ${textColor} flex items-center gap-2`}><Clock className="w-6 h-6 text-cyan-400" /> سجل الإجراءات</h3>
@@ -674,7 +687,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           </div>
         )}
 
-        {/* ===== النوافذ المنبثقة ===== */}
+        {/* ===== النوافذ المنبثقة (Modals) ===== */}
         {isEditBalanceModalOpen && editBalanceUser && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsEditBalanceModalOpen(false)}>
             <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
