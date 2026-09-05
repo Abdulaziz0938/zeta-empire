@@ -1,15 +1,30 @@
+// server/referral.js
+const User = require('./models/User');
+const Transaction = require('./models/Transaction');
+
 async function distributeReferralCommissions(childUser, childProfit) {
-  const rates = { levelA: 0.05, levelB: 0.03, levelC: 0.01 }; // 5%, 3%, 1%
+  const rates = { levelA: 0.05, levelB: 0.03, levelC: 0.01 };
 
   // الفئة A (المباشر)
   if (childUser.parentA) {
     let parentA = await User.findById(childUser.parentA);
     if (parentA && parentA.vipLevel >= 1) {
       let comm = childProfit * rates.levelA;
-      parentA.balance += comm;
-      parentA.referralEarnings += comm;
+      parentA.balance = (parentA.balance || 0) + comm;
+      parentA.referralEarnings = (parentA.referralEarnings || 0) + comm;
       await parentA.save();
-      await LogTransaction(parentA._id, comm, `Passive Income Class A from ${childUser.phone}`);
+      
+      const tx = new Transaction({
+        userId: parentA._id,
+        userName: parentA.fullName,
+        phone: parentA.phone,
+        type: 'commission',
+        amount: comm,
+        network: 'SYSTEM',
+        status: 'approved',
+        note: `عمولة إحالة فئة A من ${childUser.phone}`
+      });
+      await tx.save();
     }
   }
 
@@ -18,10 +33,21 @@ async function distributeReferralCommissions(childUser, childProfit) {
     let parentB = await User.findById(childUser.parentB);
     if (parentB && parentB.vipLevel >= 1) {
       let comm = childProfit * rates.levelB;
-      parentB.balance += comm;
-      parentB.referralEarnings += comm;
+      parentB.balance = (parentB.balance || 0) + comm;
+      parentB.referralEarnings = (parentB.referralEarnings || 0) + comm;
       await parentB.save();
-      await LogTransaction(parentB._id, comm, `Passive Income Class B from ${childUser.phone}`);
+      
+      const tx = new Transaction({
+        userId: parentB._id,
+        userName: parentB.fullName,
+        phone: parentB.phone,
+        type: 'commission',
+        amount: comm,
+        network: 'SYSTEM',
+        status: 'approved',
+        note: `عمولة إحالة فئة B من ${childUser.phone}`
+      });
+      await tx.save();
     }
   }
 
@@ -30,10 +56,23 @@ async function distributeReferralCommissions(childUser, childProfit) {
     let parentC = await User.findById(childUser.parentC);
     if (parentC && parentC.vipLevel >= 1) {
       let comm = childProfit * rates.levelC;
-      parentC.balance += comm;
-      parentC.referralEarnings += comm;
+      parentC.balance = (parentC.balance || 0) + comm;
+      parentC.referralEarnings = (parentC.referralEarnings || 0) + comm;
       await parentC.save();
-      await LogTransaction(parentC._id, comm, `Passive Income Class C from ${childUser.phone}`);
+      
+      const tx = new Transaction({
+        userId: parentC._id,
+        userName: parentC.fullName,
+        phone: parentC.phone,
+        type: 'commission',
+        amount: comm,
+        network: 'SYSTEM',
+        status: 'approved',
+        note: `عمولة إحالة فئة C من ${childUser.phone}`
+      });
+      await tx.save();
     }
   }
 }
+
+module.exports = { distributeReferralCommissions };
