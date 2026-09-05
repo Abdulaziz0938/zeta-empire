@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, ArrowDownLeft, ArrowUpRight, Copy, Check, 
   ShieldCheck, AlertCircle, Clock, Info, Wallet, User 
@@ -14,11 +14,18 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   
-  // ✅ حالات خاصة بـ Sham Cash
+  // حالات خاصة بـ Sham Cash (للسحب فقط)
   const [shamCashName, setShamCashName] = useState('');
   const [shamCashAddress, setShamCashAddress] = useState('');
   
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+
+  // ✅ إعادة تعيين الشبكة عند التبديل بين التبويبات
+  useEffect(() => {
+    if (activeTab === 'deposit' && network === 'ShamCash') {
+      setNetwork('TRC20');
+    }
+  }, [activeTab, network]);
 
   if (!isOpen) return null;
 
@@ -51,12 +58,17 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
     BEP20: '0x83482Ae471c8fc1cF13923402a57f9FE876497AA'
   };
   
-  // ✅ شبكة Sham Cash مع عمولة 4%
+  // رسوم الشبكات
   const networkFees = {
     TRC20: 0.05,   // 5%
     BEP20: 0.03,   // 3%
     ShamCash: 0.04 // 4%
   };
+
+  // ✅ قوائم الشبكات حسب التبويب
+  const depositNetworks = ['TRC20', 'BEP20'];
+  const withdrawNetworks = ['TRC20', 'BEP20', 'ShamCash'];
+  const currentNetworks = activeTab === 'deposit' ? depositNetworks : withdrawNetworks;
 
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text);
@@ -92,7 +104,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
         return;
       }
       
-      // ✅ التحقق من حقول Sham Cash
+      // ✅ التحقق من حقول Sham Cash (فقط إذا كانت الشبكة محددة)
       if (network === 'ShamCash') {
         if (!shamCashName.trim()) {
           alert('⚠️ الرجاء إدخال اسم حساب Sham Cash');
@@ -112,10 +124,9 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
 
     setIsSubmitting(true);
     try {
-      // ✅ بناء بيانات العنوان حسب الشبكة
+      // بناء بيانات العنوان حسب الشبكة
       let finalAddress = address;
       if (network === 'ShamCash') {
-        // نرسل بيانات Sham Cash بشكل منظم
         finalAddress = JSON.stringify({
           name: shamCashName,
           wallet: shamCashAddress
@@ -163,7 +174,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
     }
   };
 
-  // ✅ دالة مساعدة لعرض اسم الشبكة
+  // دالة مساعدة لعرض اسم الشبكة
   const getNetworkLabel = (net) => {
     const labels = {
       TRC20: 'Tron (USDT)',
@@ -177,7 +188,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="relative w-full max-w-lg bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl text-white max-h-[85vh] flex flex-col">
         
-        {/* الرأس الثابت (لا يمرر) */}
+        {/* الرأس الثابت */}
         <div className="sticky top-0 z-10 bg-[#030914]/95 rounded-t-3xl px-6 pt-6 pb-3 border-b border-white/10">
           <button
             onClick={onClose}
@@ -197,6 +208,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
                   setSuccessMsg('');
                   setAmount('');
                   setTxHash('');
+                  setNetwork('TRC20');
                 }}
                 className={`py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                   activeTab === 'deposit'
@@ -214,6 +226,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
                   setAddress('');
                   setShamCashName('');
                   setShamCashAddress('');
+                  setNetwork('TRC20');
                 }}
                 className={`py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                   activeTab === 'withdraw'
@@ -262,11 +275,11 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
             </div>
           )}
 
-          {/* ✅ اختيار الشبكة (مع Sham Cash) */}
+          {/* ✅ اختيار الشبكة حسب التبويب (الإيداع: TRC20/BEP20 فقط، السحب: + ShamCash) */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-gray-300">اختر شبكة التحويل:</label>
-            <div className="grid grid-cols-3 gap-2">
-              {['TRC20', 'BEP20', 'ShamCash'].map((net) => (
+            <div className={`grid ${currentNetworks.length === 2 ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+              {currentNetworks.map((net) => (
                 <button
                   key={net}
                   type="button"
@@ -288,8 +301,8 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
                   <div className="text-[10px] text-cyan-400 font-mono mt-1">
                     رسوم: {(networkFees[net] * 100).toFixed(0)}%
                   </div>
-                  {net === 'ShamCash' && (
-                    <div className="text-[8px] text-yellow-400/70 mt-1">محفظة رقمية</div>
+                  {net === 'ShamCash' && activeTab === 'withdraw' && (
+                    <div className="text-[8px] text-yellow-400/70 mt-1">💳 للسحب فقط</div>
                   )}
                 </button>
               ))}
@@ -398,7 +411,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user }) => {
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-300 flex items-center gap-1">
                       <Wallet className="w-4 h-4 text-cyan-400" />
-                      عنوان محفظة Sham Cash:
+                      عنوان محفظة Sham Cash (USDT):
                     </label>
                     <input
                       type="text"
