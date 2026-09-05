@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, Lock, RotateCcw } from 'lucide-react';
+import { Play, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, Lock, RotateCcw, Clock } from 'lucide-react';
 
 const WorkPage = ({ user, lang = 'ar' }) => {
   const t = {
@@ -12,7 +12,8 @@ const WorkPage = ({ user, lang = 'ar' }) => {
       resetTime: "تجديد المهام خلال",
       startTask: "تنفيذ المهمة",
       processing: "جاري المعالجة...",
-      allDone: "أحسنت! أكملت جميع مهام اليوم.",
+      allDone: "🎉 لقد أكملت جميع مهام اليوم!",
+      resetInfo: "ستعاد المهام في",
       earned: "الربح الصافي المستلم",
       taskPrice: "قيمة العقد",
       commissionEarned: "ربح المهمة",
@@ -34,7 +35,8 @@ const WorkPage = ({ user, lang = 'ar' }) => {
       resetTime: "Tasks Reset In",
       startTask: "Start Task",
       processing: "Processing...",
-      allDone: "Great job! All tasks completed.",
+      allDone: "🎉 You've completed all tasks for today!",
+      resetInfo: "Tasks will reset in",
       earned: "Net Commission Earned",
       taskPrice: "Contract Value",
       commissionEarned: "Task Profit",
@@ -91,7 +93,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     setTasks(generated);
   }, [contractAmount]);
 
-  // ===== عداد تجديد المهام =====
+  // ===== عداد تجديد المهام (حتى منتصف الليل) =====
   useEffect(() => {
     const updateTimer = () => {
       const now = new Date();
@@ -110,13 +112,11 @@ const WorkPage = ({ user, lang = 'ar' }) => {
 
   // ===== تنفيذ المهمة =====
   const handleExecuteTask = async (index) => {
-    // منع الضغط المتكرر
     if (isProcessing || index !== completedCount) return;
     
     setIsProcessing(true);
     setActiveTaskIndex(index);
 
-    // محاكاة تنفيذ المهمة (تأخير 2 ثانية)
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const newCompletedCount = completedCount + 1;
@@ -124,7 +124,6 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     setIsProcessing(false);
     setActiveTaskIndex(null);
 
-    // ===== إذا تم إكمال جميع المهام الخمس =====
     if (newCompletedCount === 5) {
       setIsProcessing(true);
       try {
@@ -137,10 +136,7 @@ const WorkPage = ({ user, lang = 'ar' }) => {
         if (data.success) {
           console.log('✅ تم توزيع الأرباح:', data);
           setShowRenewMessage(true);
-          // إخفاء الرسالة بعد 6 ثوانٍ
           setTimeout(() => setShowRenewMessage(false), 6000);
-          // تحديث بيانات المستخدم (يمكن جلبها من الخادم)
-          // يمكنك إضافة تحديث الرصيد هنا إذا لزم الأمر
         } else {
           console.error('❌ فشل توزيع الأرباح:', data.message);
           alert('❌ ' + data.message);
@@ -154,6 +150,9 @@ const WorkPage = ({ user, lang = 'ar' }) => {
     }
   };
 
+  // ===== متغير للتحقق من اكتمال المهام =====
+  const allTasksCompleted = completedCount === 5;
+
   return (
     <div className="min-h-screen bg-[#030914] text-white p-4 md:p-8 font-sans" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
       <div className="max-w-5xl mx-auto space-y-8">
@@ -165,9 +164,9 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           <p className="text-cyan-200/70">{t.subtitle}</p>
         </div>
 
-        {/* رسالة تجديد العقد */}
+        {/* رسالة تجديد العقد (تظهر بعد إكمال المهام مباشرة) */}
         {showRenewMessage && (
-          <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center">
+          <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center animate-pulse">
             <RotateCcw className="w-12 h-12 text-green-400 mx-auto" />
             <h3 className="text-xl font-bold text-white">{t.contractRenewed}</h3>
             <p className="text-cyan-200">
@@ -224,102 +223,117 @@ const WorkPage = ({ user, lang = 'ar' }) => {
           </div>
         </div>
 
-        {/* المهام */}
-        {contractAmount === 0 || vipLevel === 0 ? (
-          <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
-            <DollarSign className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 font-bold text-lg">{t.noContract}</p>
-            <p className="text-gray-500 text-sm mt-2">
-              {vipLevel === 0 ? t.buyVipFirst : t.depositFirst}
+        {/* ✅ حالة إكمال جميع المهام: إظهار رسالة ثابتة مع العداد */}
+        {allTasksCompleted ? (
+          <div className="bg-gradient-to-r from-green-500/20 via-cyan-500/10 to-green-500/20 border border-green-500/40 rounded-3xl p-8 text-center shadow-[0_0_30px_rgba(34,197,94,0.2)]">
+            <ShieldCheck className="w-16 h-16 text-green-400 mx-auto mb-4 drop-shadow-[0_0_20px_rgba(34,197,94,0.5)]" />
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">{t.allDone}</h2>
+            <p className="text-cyan-200 text-lg">
+              {t.resetInfo}{' '}
+              <span className="text-yellow-300 font-mono text-2xl font-bold drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">
+                {timeToReset}
+              </span>
             </p>
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="mt-4 px-6 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all"
-            >
-              {vipLevel === 0 ? 'عرض مستويات VIP' : t.backToDeposit}
-            </button>
+            <p className="text-xs text-gray-400 mt-4 border-t border-white/10 pt-4">
+              {t.earned}: <span className="text-green-400 font-extrabold">${totalProfit.toFixed(2)}</span>
+            </p>
+            <p className="text-[11px] text-gray-500 mt-1">
+              {t.contractLocked} (${lockedAmount.toFixed(2)})
+            </p>
+            <div className="mt-4 flex justify-center gap-2 text-xs text-gray-400">
+              <Clock className="w-4 h-4" />
+              <span>سيتم تجديد المهام تلقائياً عند منتصف الليل</span>
+            </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {tasks.map((price, idx) => {
-              const isCompleted = idx < completedCount;
-              const isCurrent = idx === completedCount;
-              const isLocked = idx > completedCount;
-              return (
-                <div
-                  key={idx}
-                  className={`transition-all duration-300 backdrop-blur-xl rounded-2xl p-5 border flex flex-col md:flex-row items-center justify-between gap-4 ${
-                    isCompleted
-                      ? 'bg-green-500/10 border-green-500/40'
-                      : isCurrent
-                      ? 'bg-[#00f3ff]/10 border-[#00f3ff] shadow-[0_0_25px_rgba(0,243,255,0.25)]'
-                      : 'bg-white/5 border-white/10 opacity-50'
-                  }`}
+          <>
+            {/* المهام (تظهر فقط إذا لم تكتمل) */}
+            {contractAmount === 0 || vipLevel === 0 ? (
+              <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
+                <DollarSign className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                <p className="text-gray-400 font-bold text-lg">{t.noContract}</p>
+                <p className="text-gray-500 text-sm mt-2">
+                  {vipLevel === 0 ? t.buyVipFirst : t.depositFirst}
+                </p>
+                <button
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="mt-4 px-6 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all"
                 >
-                  <div className="flex items-center gap-4">
+                  {vipLevel === 0 ? 'عرض مستويات VIP' : t.backToDeposit}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {tasks.map((price, idx) => {
+                  const isCompleted = idx < completedCount;
+                  const isCurrent = idx === completedCount;
+                  const isLocked = idx > completedCount;
+                  return (
                     <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg border ${
+                      key={idx}
+                      className={`transition-all duration-300 backdrop-blur-xl rounded-2xl p-5 border flex flex-col md:flex-row items-center justify-between gap-4 ${
                         isCompleted
-                          ? 'bg-green-500/20 text-green-400'
+                          ? 'bg-green-500/10 border-green-500/40'
                           : isCurrent
-                          ? 'bg-[#00f3ff]/20 text-[#00f3ff]'
-                          : 'bg-white/5 text-gray-500'
+                          ? 'bg-[#00f3ff]/10 border-[#00f3ff] shadow-[0_0_25px_rgba(0,243,255,0.25)]'
+                          : 'bg-white/5 border-white/10 opacity-50'
                       }`}
                     >
-                      #{idx + 1}
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-400">{t.taskPrice}</p>
-                      <p className="text-lg font-bold text-white">${price}</p>
-                    </div>
-                    <div className="border-r border-white/10 h-8 mx-2" />
-                    <div>
-                      <p className="text-xs text-gray-400">{t.commissionEarned}</p>
-                      <p className="text-lg font-bold text-cyan-300">+${(totalProfit / 5).toFixed(2)}</p>
-                    </div>
-                  </div>
-                  <div>
-                    {isCompleted ? (
-                      <div className="flex items-center gap-2 text-green-400 font-semibold px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/30">
-                        <CheckCircle2 className="w-5 h-5" /> مكتملة
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg border ${
+                            isCompleted
+                              ? 'bg-green-500/20 text-green-400'
+                              : isCurrent
+                              ? 'bg-[#00f3ff]/20 text-[#00f3ff]'
+                              : 'bg-white/5 text-gray-500'
+                          }`}
+                        >
+                          #{idx + 1}
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400">{t.taskPrice}</p>
+                          <p className="text-lg font-bold text-white">${price}</p>
+                        </div>
+                        <div className="border-r border-white/10 h-8 mx-2" />
+                        <div>
+                          <p className="text-xs text-gray-400">{t.commissionEarned}</p>
+                          <p className="text-lg font-bold text-cyan-300">+${(totalProfit / 5).toFixed(2)}</p>
+                        </div>
                       </div>
-                    ) : isLocked ? (
-                      <div className="flex items-center gap-2 text-gray-500 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
-                        <Lock className="w-5 h-5" /> مغلقة
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => handleExecuteTask(idx)}
-                        disabled={isProcessing}
-                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_35px_rgba(0,243,255,0.8)] disabled:opacity-50"
-                      >
-                        {isProcessing && activeTaskIndex === idx ? (
-                          <>
-                            <RefreshCw className="w-5 h-5 animate-spin" /> {t.processing}
-                          </>
+                      <div>
+                        {isCompleted ? (
+                          <div className="flex items-center gap-2 text-green-400 font-semibold px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/30">
+                            <CheckCircle2 className="w-5 h-5" /> مكتملة
+                          </div>
+                        ) : isLocked ? (
+                          <div className="flex items-center gap-2 text-gray-500 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
+                            <Lock className="w-5 h-5" /> مغلقة
+                          </div>
                         ) : (
-                          <>
-                            <Play className="w-5 h-5 fill-slate-950" /> {t.startTask}
-                          </>
+                          <button
+                            onClick={() => handleExecuteTask(idx)}
+                            disabled={isProcessing}
+                            className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_35px_rgba(0,243,255,0.8)] disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {isProcessing && activeTaskIndex === idx ? (
+                              <>
+                                <RefreshCw className="w-5 h-5 animate-spin" /> {t.processing}
+                              </>
+                            ) : (
+                              <>
+                                <Play className="w-5 h-5 fill-slate-950" /> {t.startTask}
+                              </>
+                            )}
+                          </button>
                         )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* رسالة الإتمام */}
-        {completedCount === 5 && !showRenewMessage && (
-          <div className="bg-gradient-to-r from-green-500/20 to-cyan-500/20 border border-green-500/50 rounded-3xl p-6 text-center">
-            <ShieldCheck className="w-16 h-16 text-green-400 mx-auto" />
-            <h2 className="text-2xl font-bold text-white">{t.allDone}</h2>
-            <p className="text-cyan-200">
-              {t.earned}: <span className="text-green-400 font-extrabold text-xl">${totalProfit.toFixed(2)}</span>
-            </p>
-          </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
