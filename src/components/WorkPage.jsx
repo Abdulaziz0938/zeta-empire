@@ -159,10 +159,16 @@ const WorkPage = ({ lang = 'ar' }) => {
     if (newCompletedCount === 5) {
       setIsProcessing(true);
       try {
+        const userId = user._id || user.id;
+        if (!userId) {
+          alert('⚠️ لم يتم العثور على معرف المستخدم');
+          setIsProcessing(false);
+          return;
+        }
         const res = await fetch(`${API_BASE}/api/tasks/complete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user._id || user.id })
+          body: JSON.stringify({ userId })
         });
         const data = await res.json();
         if (data.success) {
