@@ -55,27 +55,77 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
     return true;
   };
 
-  // ✅ دالة تسجيل الدخول الحقيقية (لا توجد بيانات وهمية هنا)
+  // ✅ دالة تسجيل الدخول الحقيقية + تحديث بيانات المُحيل بعد التسجيل
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
     setIsLoading(true);
+
+    // ✅ حفظ كود الإحالة قبل تسجيل الدخول (للتسجيل)
+    const referralCode = formData.referralCode;
+
     try {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
       const payload = isLogin 
         ? { phone: formData.phone, password: formData.password }
-        : { fullName: formData.fullName, phone: formData.phone, password: formData.password, withdrawPin: formData.withdrawPin.join(''), referralCode: formData.referralCode, inviteCode: 'ZETA' + Math.floor(1000 + Math.random() * 9000) };
-      const res = await fetch(`${API_BASE}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        : { 
+            fullName: formData.fullName,
+            phone: formData.phone,
+            password: formData.password,
+            withdrawPin: formData.withdrawPin.join(''),
+            referralCode: referralCode,  // ← إرسال كود الإحالة
+            inviteCode: 'ZETA' + Math.floor(1000 + Math.random() * 9000)
+          };
+
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
       const data = await res.json();
+
       if (data.success) {
-        onAuthSuccess(data.user);
+        // ✅ تسجيل الدخول أو التسجيل ناجح
+        const userData = data.user;
+        
+        // ✅ إذا كان تسجيل حساب جديد وكان هناك كود إحالة، نحدث بيانات المُحيل في localStorage
+        if (!isLogin && referralCode) {
+          // نحاول جلب بيانات المُحيل المحدثة من الخادم
+          try {
+            // نبحث عن المستخدم المُحيل عن طريق رقم هاتفه (أو يمكن تخزينه في localStorage)
+            // لكن الطريقة الأسهل: بعد التسجيل، نجلب بيانات المستخدم الحالي من الخادم
+            // حيث أن بيانات المُحيل قد تم تحديثها في قاعدة البيانات
+            // نقوم بتحديث localStorage للمستخدم الحالي (المُحيل) إذا كان مسجلاً بالفعل
+            const currentUser = JSON.parse(localStorage.getItem('zeta_user'));
+            if (currentUser) {
+              // نجلب بيانات المستخدم الحالي من الخادم للتحديث
+              const refreshRes = await fetch(`${API_BASE}/api/users/${currentUser.phone}`);
+              const refreshData = await refreshRes.json();
+              if (refreshData.success) {
+                const updatedUser = refreshData.user;
+                localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
+                // نحدث حالة المستخدم في التطبيق (إذا كانت onAuthSuccess تستقبل دالة تحديث)
+                // يمكننا استدعاء onAuthSuccess مرة أخرى مع البيانات المحدثة
+                onAuthSuccess(updatedUser);
+              }
+            }
+          } catch (refreshError) {
+            console.warn('⚠️ تعذر تحديث بيانات المُحيل:', refreshError);
+          }
+        }
+
+        // ✅ تسجيل الدخول العادي
+        onAuthSuccess(userData);
         alert(isLogin ? '✅ تم تسجيل الدخول بنجاح!' : '✅ تم إنشاء الحساب بنجاح!');
       } else {
         alert('❌ ' + (data.message || 'حدث خطأ غير معروف'));
       }
     } catch (error) {
-      alert('❌ تعذر الاتصال بالخادم. تأكد من تشغيل الخادم الخلفي.');
-    } finally { setIsLoading(false); }
+      alert('❌ تعذر الاتصال بالخادم.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -99,7 +149,7 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
           {!isLogin && (<>
             <div className="space-y-1"><label className="text-xs font-bold text-gray-300">{t.confirmPassword}</label><input type={showPassword ? "text" : "password"} name="confirmPassword" placeholder="••••••••" value={formData.confirmPassword} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 pr-10 text-white placeholder-gray-500 outline-none text-sm font-mono" />{errors.confirmPassword && <p className="text-[11px] text-red-400">{errors.confirmPassword}</p>}</div>
             <div className="space-y-2 pt-2 border-t border-white/10"><div className="flex justify-between items-center"><label className="text-xs font-bold text-cyan-300 flex items-center gap-1"><KeyRound className="w-4 h-4 text-[#00f3ff]" /> {t.withdrawPin}</label><button type="button" onClick={() => setShowPin(!showPin)} className="text-[10px] text-gray-400 hover:text-white">{showPin ? 'إخفاء' : 'إظهار'}</button></div><div className="grid grid-cols-6 gap-2" dir="ltr">{formData.withdrawPin.map((digit, idx) => (<input key={idx} id={`pin-input-${idx}`} type={showPin ? "text" : "password"} maxLength={1} value={digit} onChange={(e) => handlePinChange(idx, e.target.value)} onKeyDown={(e) => handlePinKeyDown(idx, e)} className="w-full h-12 bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-xl text-center text-lg font-black text-cyan-300 outline-none font-mono" />))}</div><p className="text-[10px] text-gray-400">{t.pinNotice}</p>{errors.withdrawPin && <p className="text-[11px] text-red-400">{errors.withdrawPin}</p>}</div>
-            <div className="space-y-1"><label className="text-xs font-bold text-gray-300">{t.referralCode}</label><input type="text" name="referralCode" placeholder="ZETA-8890" value={formData.referralCode} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 pr-10 text-white placeholder-gray-500 outline-none text-sm font-mono uppercase" /></div>
+            <div className="space-y-1"><label className="text-xs font-bold text-gray-300">{t.referralCode}</label><input type="text" name="referralCode" placeholder="مثال: ZETA1234" value={formData.referralCode} onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 pr-10 text-white placeholder-gray-500 outline-none text-sm font-mono uppercase" /></div>
           </>)}
           <button type="submit" disabled={isLoading} className="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-black text-sm shadow-[0_0_25px_rgba(0,243,255,0.4)] hover:shadow-[0_0_35px_rgba(0,243,255,0.6)] transition-all disabled:opacity-50 mt-4 flex items-center justify-center gap-2">{isLoading ? 'جاري المعالجة...' : (isLogin ? t.submitLogin : t.submitRegister)}</button>
         </form>
