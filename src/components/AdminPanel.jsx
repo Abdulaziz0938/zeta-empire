@@ -45,16 +45,36 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       // جلب المستخدمين
       const usersRes = await fetch(`${API_BASE}/api/users`);
       const usersData = await usersRes.json();
-      if (usersData.success) setUsers(usersData.users);
+      if (usersData.success) {
+        setUsers(usersData.users);
+      } else {
+        console.warn('⚠️ فشل جلب المستخدمين:', usersData.message);
+        setUsers([]);
+      }
 
       // جلب المعاملات
       const txsRes = await fetch(`${API_BASE}/api/transactions`);
       const txsData = await txsRes.json();
-      if (txsData.success) setTransactions(txsData.transactions);
+      if (txsData.success) {
+        setTransactions(txsData.transactions);
+      } else {
+        console.warn('⚠️ فشل جلب المعاملات:', txsData.message);
+        setTransactions([]);
+      }
+
+      // جلب سجل الإجراءات
+      const auditRes = await fetch(`${API_BASE}/api/admin/audit`);
+      const auditData = await auditRes.json();
+      if (auditData.success) {
+        setAuditLogs(auditData.logs);
+      }
 
       setLastUpdated(new Date());
     } catch (error) {
       console.error('❌ فشل جلب البيانات:', error);
+      // في حالة فشل الجلب، نترك المصفوفات فارغة (لا نستخدم بيانات وهمية)
+      setUsers([]);
+      setTransactions([]);
     } finally {
       setIsLoading(false);
     }
