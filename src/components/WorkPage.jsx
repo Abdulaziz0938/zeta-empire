@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useZeta } from '../context/ZetaContext.jsx';
 import { 
   Play, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, 
-  Lock, RotateCcw, Clock, TrendingUp, Award, Target 
+  Lock, RotateCcw, Clock, TrendingUp, Award, Target, Crown 
 } from 'lucide-react';
-import { useZeta } from '../context/ZetaContext.jsx';
 
 const WorkPage = ({ lang = 'ar' }) => {
   const { user, refreshUser } = useZeta();
