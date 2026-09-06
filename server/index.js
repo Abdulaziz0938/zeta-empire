@@ -54,16 +54,31 @@ app.get('/api/users/:phone', async (req, res) => {
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ===== جلب بيانات الفريق (مع populate) =====
 app.get('/api/team/:userId', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
       .populate('parentA', 'fullName phone vipLevel balance totalDeposit')
       .populate('parentB', 'fullName phone vipLevel balance totalDeposit')
       .populate('parentC', 'fullName phone vipLevel balance totalDeposit');
-    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-    const team = { A: user.parentA || [], B: user.parentB || [], C: user.parentC || [] };
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    }
+
+    const team = {
+      A: user.parentA || [],
+      B: user.parentB || [],
+      C: user.parentC || []
+    };
+
+    console.log('📦 بيانات الفريق:', team);
+
     res.json({ success: true, team });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) {
+    console.error('❌ خطأ في جلب بيانات الفريق:', error);
+    res.status(500).json({ success: false, message: error.message } );
+  }
 });
 
 app.post('/api/auth/login', async (req, res) => {
