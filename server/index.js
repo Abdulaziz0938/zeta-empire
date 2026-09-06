@@ -66,13 +66,14 @@ app.get('/api/team/:userId', async (req, res) => {
       return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     }
 
+    // ✅ تحويل الكائنات إلى مصفوفات (الحل النهائي)
     const team = {
       A: user.parentA ? [user.parentA] : [],
       B: user.parentB ? [user.parentB] : [],
       C: user.parentC ? [user.parentC] : []
     };
 
-    console.log('📦 بيانات الفريق:', team);
+    console.log('📦 بيانات الفريق (مصفوفات):', team);
 
     res.json({ success: true, team });
   } catch (error) {
@@ -103,14 +104,10 @@ app.post('/api/auth/register', async (req, res) => {
     const newUser = new User(userData);
     await newUser.save();
 
-    // ✅ إذا كان هناك كود إحالة، نبحث عن المُحيل ونضيف المستخدم إلى الفئة A
     if (userData.referralCode) {
       const referrer = await User.findOne({ inviteCode: userData.referralCode });
       if (referrer) {
-        // زيادة عدد الإحالات
         referrer.referrals = (referrer.referrals || 0) + 1;
-
-        // ✅ إضافة المستخدم الجديد إلى الفئة A (المباشرة)
         if (!referrer.parentA) {
           referrer.parentA = newUser._id;
         } else if (!referrer.parentB) {
@@ -118,17 +115,14 @@ app.post('/api/auth/register', async (req, res) => {
         } else if (!referrer.parentC) {
           referrer.parentC = newUser._id;
         } else {
-          // إذا كانت الفئات الثلاث ممتلئة، نستبدل آخر عنصر (C)
           referrer.parentC = newUser._id;
         }
-
         await referrer.save();
       }
     }
 
     const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-    const response = newUser.toObject();
-    delete response.password;
+    const response = newUser.toObject(); delete response.password;
     res.status(201).json({ success: true, user: response, token });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
