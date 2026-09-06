@@ -57,34 +57,81 @@ pi/team/,/});/d
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// ===== جلب بيانات الفريق (مع populate) =====
+
+
+
+
+
+
+// ===== جلب شجرة الإحالة (3 مستويات) =====
 app.get('/api/team/:userId', async (req, res) => {
-pi/team/,/});/d
   try {
-    const user = await User.findById(req.params.userId)
-      .populate('parentA', 'fullName phone vipLevel balance totalDeposit')
-      .populate('parentB', 'fullName phone vipLevel balance totalDeposit')
-      .populate('parentC', 'fullName phone vipLevel balance totalDeposit');
-    
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-    }
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
 
-    // ✅ تحويل الكائنات إلى مصفوفات (الحل النهائي)
-    const team = {
-      A: user.parentA ? (Array.isArray(user.parentA) ? user.parentA : [user.parentA]) : [],
-      B: user.parentB ? (Array.isArray(user.parentB) ? user.parentB : [user.parentB]) : [],
-      C: user.parentC ? (Array.isArray(user.parentC) ? user.parentC : [user.parentC]) : []
-    };
+    const phone = user.phone;
 
-    console.log('📦 بيانات الفريق (مصفوفات):', team);
+    // جلب جميع المستخدمين
+    const allUsers = await User.find().select('phone fullName vipLevel balance totalDeposit referrals parent');
 
-    res.json({ success: true, team });
+    // المستوى الأول: من يشيرون إلى هذا المستخدم مباشرة
+    const level1 = allUsers.filter(u => u.parent === phone);
+    // المستوى الثاني: من يشيرون إلى أعضاء المستوى الأول
+    const level1Phones = level1.map(u => u.phone);
+    const level2 = allUsers.filter(u => level1Phones.includes(u.parent));
+    // المستوى الثالث: من يشيرون إلى أعضاء المستوى الثاني
+    const level2Phones = level2.map(u => u.phone);
+    const level3 = allUsers.filter(u => level2Phones.includes(u.parent));
+
+    // إجمالي العمولات المستلمة من الإحالات
+    const totalReferralCommissions = user.totalReferralCommissions || 0;
+
+    res.json({
+      success: true,
+      team: {
+        level1: level1.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit })),
+        level2: level2.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit })),
+        level3: level3.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit }))
+      },
+      totalReferralCommissions
+    });
   } catch (error) {
     console.error('❌ خطأ في جلب بيانات الفريق:', error);
-    res.status(500).json({ success: false, message: error.message } );
+    res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
+
+
+
+// ===== توزيع العمولات على 3 مستويات =====
+async function distributeReferralCommissions(userPhone, amount, type = 'deposit') {
+  const rates = [0.05, 0.03, 0.01];
+  let currentPhone = userPhone;
+  let level = 0;
+  let totalCommissions = 0;
+
+  while (currentPhone && currentPhone !== 'ADMIN_MAIN' && level < 3) {
+    const parentUser = await User.findOne({ phone: currentPhone });
+    if (!parentUser || parentUser.vipLevel < 1) break;
+
+    const commission = amount * rates[level];
+    if (commission > 0) {
+      parentUser.balance = (parentUser.balance || 0) + commission;
+      parentUser.totalEarnings = (parentUser.totalEarnings || 0) + commission;
+      parentUser.totalReferralCommissions = (parentUser.totalReferralCommissions || 0) + commission;
+      if (type === 'deposit') parentUser.referralEarnings = (parentUser.referralEarnings || 0) + commission;
+      await parentUser.save();
+      console.log(`✅ عمولة المستوى ${level+1} (${rates[level]*100}%): ${commission} للمستخدم ${parentUser.phone}`);
+      totalCommissions += commission;
+    }
+    currentPhone = parentUser.parent;
+    level++;
+  }
+  return totalCommissions;
+}
+
 
 // ===== تسجيل الدخول =====
 app.post('/api/auth/login', async (req, res) => {
@@ -101,36 +148,39 @@ pi/auth/register/,/});/d
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// ===== تسجيل حساب جديد (مع شجرة الإحالة الصحيحة) =====
+
+
+
+
 app.post('/api/auth/register', async (req, res) => {
-pi/auth/register/,/});/d
   const userData = req.body;
   try {
     const existingUser = await User.findOne({ phone: userData.phone });
     if (existingUser) return res.status(400).json({ success: false, message: 'رقم الهاتف مسجل بالفعل' });
 
-    // 1. البحث عن المُحيل (إذا وجد)
-    let referrer = null;
+    // ✅ البحث عن المُحيل باستخدام كود الإحالة
+    let parentPhone = 'ADMIN_MAIN';
     if (userData.referralCode) {
-      referrer = await User.findOne({ inviteCode: userData.referralCode });
+      const referrer = await User.findOne({ inviteCode: userData.referralCode });
+      if (referrer) {
+        parentPhone = referrer.phone;
+        // زيادة عدد الإحالات للمُحيل
+        referrer.referrals = (referrer.referrals || 0) + 1;
+        await referrer.save();
+      }
     }
 
-    // 2. بناء بيانات المستخدم الجديد مع شجرة الإحالة الصحيحة
-    const newUserData = {
+    // إنشاء المستخدم الجديد
+    const newUser = new User({
       ...userData,
-      parentA: referrer ? referrer._id : null,
-      parentB: referrer ? referrer.parentA : null,
-      parentC: referrer ? referrer.parentB : null
-    };
-
-    const newUser = new User(newUserData);
+      parent: parentPhone,
+      balance: 2, // مكافأة ترحيبية
+      totalEarnings: 0,
+      dailyEarnings: 0,
+      referrals: 0,
+      totalReferralCommissions: 0
+    });
     await newUser.save();
-
-    // 3. زيادة عدد الإحالات للمُحيل المباشر
-    if (referrer) {
-      referrer.referrals = (referrer.referrals || 0) + 1;
-      await referrer.save();
-    }
 
     const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
     const response = newUser.toObject();
@@ -141,6 +191,11 @@ pi/auth/register/,/});/d
     res.status(500).json({ success: false, message: error.message });
   }
 });
+
+
+
+
+
 
 app.post('/api/tasks/complete', async (req, res) => {
 pi/auth/register/,/});/d
@@ -272,6 +327,9 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
     if (tx.type === 'deposit') { user.balance = (Number(user.balance) || 0) + tx.amount; user.totalDeposit = (Number(user.totalDeposit) || 0) + tx.amount; }
     else if (tx.type === 'withdraw') { if (user.balance < tx.amount) return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' }); user.balance = (Number(user.balance) || 0) - tx.amount; user.totalWithdrawal = (Number(user.totalWithdrawal) || 0) + tx.amount; }
     await user.save();
+
+
+
     // ✅ توزيع العمولات على المحيلين 
     if (tx.type === "deposit" && tx.amount > 0) { 
       await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
@@ -355,44 +413,7 @@ pi/auth/register/,/});/d
 
 app.listen(PORT, () => console.log(`🚀 يعمل على المنفذ ${PORT}`));
 module.exports = app;
-// ===== توزيع العمولات على 3 مستويات =====
-async function distributeReferralCommissions(userPhone, amount, type = 'deposit') {
-  // نسب العمولات: المستوى الأول 5%، الثاني 3%، الثالث 1%
-  const rates = [0.05, 0.03, 0.01];
-  let currentPhone = userPhone;
-  let level = 0;
-  let totalCommissions = 0;
 
-  while (currentPhone && currentPhone !== 'ADMIN_MAIN' && level < 3) {
-    const parentUser = await User.findOne({ phone: currentPhone });
-    if (!parentUser || parentUser.vipLevel < 1) break; // فقط الأعضاء النشطون (VIP1+) يستحقون العمولات
 
-    const commission = amount * rates[level];
-    if (commission > 0) {
-      parentUser.balance = (parentUser.balance || 0) + commission;
-      parentUser.totalEarnings = (parentUser.totalEarnings || 0) + commission;
-      parentUser.totalReferralCommissions = (parentUser.totalReferralCommissions || 0) + commission;
-      if (type === 'deposit') parentUser.referralEarnings = (parentUser.referralEarnings || 0) + commission;
-      await parentUser.save();
 
-      // تسجيل العمولة في سجل العمولات (commission_log)
-      const logEntry = {
-        userId: parentUser._id,
-        phone: parentUser.phone,
-        type: type,
-        amount: commission,
-        source: userPhone,
-        level: level + 1,
-        timestamp: Date.now()
-      };
-      // يمكن حفظها في collection منفصل إذا أردت
-      console.log(`✅ عمولة المستوى ${level+1} (${rates[level]*100}%): ${commission} للمستخدم ${parentUser.phone}`);
-      totalCommissions += commission;
-    }
 
-    currentPhone = parentUser.parent;
-    level++;
-  }
-
-  return totalCommissions;
-}

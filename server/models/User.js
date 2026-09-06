@@ -9,9 +9,9 @@ const userSchema = new mongoose.Schema({
   inviteCode: { type: String, required: true, unique: true },
   
   // ✅ شجرة الإحالة (باستخدام رقم الهاتف)
-  parent: { type: String, default: 'ADMIN_MAIN' }, // رقم هاتف المُحيل المباشر
+  parent: { type: String, default: 'ADMIN_MAIN' },
   
-  // المستويات والأرصدة
+  // الأرصدة
   vipLevel: { type: Number, default: 0 },
   balance: { type: Number, default: 0 },
   totalDeposit: { type: Number, default: 0 },
@@ -23,10 +23,10 @@ const userSchema = new mongoose.Schema({
   monthlyEarnings: { type: Number, default: 0 },
   totalEarnings: { type: Number, default: 0 },
   referralEarnings: { type: Number, default: 0 },
-  totalReferralCommissions: { type: Number, default: 0 }, // ✅ العمولات الكلية من الإحالات
+  totalReferralCommissions: { type: Number, default: 0 }, // ✅ العمولات الكلية
   
   // الإحالات
-  referrals: { type: Number, default: 0 }, // عدد الإحالات المباشرة
+  referrals: { type: Number, default: 0 },
   
   // المهام
   tasksCompletedToday: { type: Number, default: 0 },
