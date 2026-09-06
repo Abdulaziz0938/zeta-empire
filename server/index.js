@@ -42,69 +42,6 @@ function isWithdrawTimeAllowed() {
 
 const ALLOWED_WITHDRAW_AMOUNTS = [14, 25, 50, 100, 200, 500, 1000];
 
-app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
-pi/team/,/});/d
-
-app.get('/api/users', async (req, res) => {
-pi/team/,/});/d
-  try { const users = await User.find().select('-password -withdrawPin'); res.json({ success: true, users }); } 
-  catch (error) { res.status(500).json({ success: false, message: error.message }); }
-});
-
-app.get('/api/users/:phone', async (req, res) => {
-pi/team/,/});/d
-  try { const user = await User.findOne({ phone: req.params.phone }); if (!user) return res.status(404).json({ success: false, message: 'غير موجود' }); const userData = user.toObject(); delete userData.password; res.json({ success: true, user: userData }); } 
-  catch (error) { res.status(500).json({ success: false, message: error.message }); }
-});
-
-
-
-
-
-
-
-// ===== جلب شجرة الإحالة (3 مستويات) =====
-app.get('/api/team/:userId', async (req, res) => {
-  try {
-    const user = await User.findById(req.params.userId);
-    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-
-    const phone = user.phone;
-
-    // جلب جميع المستخدمين
-    const allUsers = await User.find().select('phone fullName vipLevel balance totalDeposit referrals parent');
-
-    // المستوى الأول: من يشيرون إلى هذا المستخدم مباشرة
-    const level1 = allUsers.filter(u => u.parent === phone);
-    // المستوى الثاني: من يشيرون إلى أعضاء المستوى الأول
-    const level1Phones = level1.map(u => u.phone);
-    const level2 = allUsers.filter(u => level1Phones.includes(u.parent));
-    // المستوى الثالث: من يشيرون إلى أعضاء المستوى الثاني
-    const level2Phones = level2.map(u => u.phone);
-    const level3 = allUsers.filter(u => level2Phones.includes(u.parent));
-
-    // إجمالي العمولات المستلمة من الإحالات
-    const totalReferralCommissions = user.totalReferralCommissions || 0;
-
-    res.json({
-      success: true,
-      team: {
-        level1: level1.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit })),
-        level2: level2.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit })),
-        level3: level3.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit }))
-      },
-      totalReferralCommissions
-    });
-  } catch (error) {
-    console.error('❌ خطأ في جلب بيانات الفريق:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-
-
-
 // ===== توزيع العمولات على 3 مستويات =====
 async function distributeReferralCommissions(userPhone, amount, type = 'deposit') {
   const rates = [0.05, 0.03, 0.01];
@@ -132,10 +69,51 @@ async function distributeReferralCommissions(userPhone, amount, type = 'deposit'
   return totalCommissions;
 }
 
+app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
 
-// ===== تسجيل الدخول =====
+app.get('/api/users', async (req, res) => {
+  try { const users = await User.find().select('-password -withdrawPin'); res.json({ success: true, users }); } 
+  catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+app.get('/api/users/:phone', async (req, res) => {
+  try { const user = await User.findOne({ phone: req.params.phone }); if (!user) return res.status(404).json({ success: false, message: 'غير موجود' }); const userData = user.toObject(); delete userData.password; res.json({ success: true, user: userData }); } 
+  catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// ===== جلب شجرة الإحالة (3 مستويات) =====
+app.get('/api/team/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+
+    const phone = user.phone;
+    const allUsers = await User.find().select('phone fullName vipLevel balance totalDeposit referrals parent');
+
+    const level1 = allUsers.filter(u => u.parent === phone);
+    const level1Phones = level1.map(u => u.phone);
+    const level2 = allUsers.filter(u => level1Phones.includes(u.parent));
+    const level2Phones = level2.map(u => u.phone);
+    const level3 = allUsers.filter(u => level2Phones.includes(u.parent));
+
+    const totalReferralCommissions = user.totalReferralCommissions || 0;
+
+    res.json({
+      success: true,
+      team: {
+        level1: level1.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit })),
+        level2: level2.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit })),
+        level3: level3.map(u => ({ phone: u.phone, fullName: u.fullName, vipLevel: u.vipLevel, balance: u.balance, totalDeposit: u.totalDeposit }))
+      },
+      totalReferralCommissions
+    });
+  } catch (error) {
+    console.error('❌ خطأ في جلب بيانات الفريق:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
-pi/auth/register/,/});/d
   const { phone, password } = req.body;
   try {
     const user = await User.findOne({ phone });
@@ -148,33 +126,27 @@ pi/auth/register/,/});/d
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-
-
-
-
+// ===== تسجيل حساب جديد (مع شجرة الإحالة) =====
 app.post('/api/auth/register', async (req, res) => {
   const userData = req.body;
   try {
     const existingUser = await User.findOne({ phone: userData.phone });
     if (existingUser) return res.status(400).json({ success: false, message: 'رقم الهاتف مسجل بالفعل' });
 
-    // ✅ البحث عن المُحيل باستخدام كود الإحالة
     let parentPhone = 'ADMIN_MAIN';
     if (userData.referralCode) {
       const referrer = await User.findOne({ inviteCode: userData.referralCode });
       if (referrer) {
         parentPhone = referrer.phone;
-        // زيادة عدد الإحالات للمُحيل
         referrer.referrals = (referrer.referrals || 0) + 1;
         await referrer.save();
       }
     }
 
-    // إنشاء المستخدم الجديد
     const newUser = new User({
       ...userData,
       parent: parentPhone,
-      balance: 2, // مكافأة ترحيبية
+      balance: 2,
       totalEarnings: 0,
       dailyEarnings: 0,
       referrals: 0,
@@ -192,26 +164,29 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-
-
-
-
-
 app.post('/api/tasks/complete', async (req, res) => {
-pi/auth/register/,/});/d
   const { userId } = req.body;
   try {
     const result = await completeTasksAndDistribute(userId);
-    if (result.success) { await saveAuditLog('النظام', `توزيع أرباح ${userId}`, { profit: result.profit }); res.json({ success: true, result }); } 
-    if (result.success && result.profit > 0) { 
-      await distributeReferralCommissions(userId, result.profit, "task"); 
+    if (result.success) {
+      await saveAuditLog('النظام', `توزيع أرباح ${userId}`, { profit: result.profit });
+      // ✅ توزيع العمولات على المحيلين
+      if (result.profit > 0) {
+        const user = await User.findById(userId);
+        if (user && user.phone) {
+          await distributeReferralCommissions(user.phone, result.profit, 'task');
+        }
+      }
+      res.json({ success: true, result });
+    } else {
+      res.status(400).json({ success: false, message: result.message });
     }
-    else res.status(400).json({ success: false, message: result.message });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 app.post('/api/transactions', async (req, res) => {
-pi/auth/register/,/});/d
   try {
     const { userId, userName, phone, type, amount, network, address, txHash, fee, note } = req.body;
     if (type === 'withdraw' && !isWithdrawTimeAllowed()) {
@@ -228,19 +203,16 @@ pi/auth/register/,/});/d
 });
 
 app.get('/api/transactions', async (req, res) => {
-pi/team/,/});/d
   try { const transactions = await Transaction.find().sort({ createdAt: -1 }); res.json({ success: true, transactions }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 app.get('/api/transactions/user/:userId', async (req, res) => {
-pi/team/,/});/d
   try { const transactions = await Transaction.find({ userId: req.params.userId }).sort({ createdAt: -1 }); res.json({ success: true, transactions }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 app.get('/api/notifications', async (req, res) => {
-pi/team/,/});/d
   try {
     const userId = req.query.userId;
     let filter = { targetUserId: null };
@@ -251,7 +223,6 @@ pi/team/,/});/d
 });
 
 app.get('/api/admin/audit', async (req, res) => {
-pi/team/,/});/d
   try { const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(50); res.json({ success: true, logs }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
@@ -262,10 +233,6 @@ app.put('/api/admin/promote/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     if (user.vipLevel >= 7) return res.status(400).json({ success: false, message: 'أعلى مستوى' });
     const old = user.vipLevel; user.vipLevel += 1; await user.save();
-    // ✅ توزيع العمولات على المحيلين 
-    if (tx.type === "deposit" && tx.amount > 0) { 
-      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
-    }
     await saveAuditLog('المدير', `ترقية ${user.fullName}`, { from: old, to: user.vipLevel });
     res.json({ success: true, message: `تمت الترقية إلى VIP ${user.vipLevel}`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -277,10 +244,6 @@ app.put('/api/admin/demote/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     if (user.vipLevel <= 0) return res.status(400).json({ success: false, message: 'أدنى مستوى' });
     const old = user.vipLevel; user.vipLevel -= 1; await user.save();
-    // ✅ توزيع العمولات على المحيلين 
-    if (tx.type === "deposit" && tx.amount > 0) { 
-      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
-    }
     await saveAuditLog('المدير', `تخفيض ${user.fullName}`, { from: old, to: user.vipLevel });
     res.json({ success: true, message: `تم التخفيض إلى VIP ${user.vipLevel}`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -291,10 +254,6 @@ app.put('/api/admin/ban/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     const old = user.status; user.status = user.status === 'نشط' ? 'موقف' : 'نشط'; await user.save();
-    // ✅ توزيع العمولات على المحيلين 
-    if (tx.type === "deposit" && tx.amount > 0) { 
-      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
-    }
     await saveAuditLog('المدير', `${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'} ${user.fullName}`, { from: old, to: user.status });
     res.json({ success: true, message: `تم ${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'} الحساب`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -306,10 +265,6 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     const old = user.balance; user.balance = (Number(user.balance) || 0) + parseFloat(amount); await user.save();
-    // ✅ توزيع العمولات على المحيلين 
-    if (tx.type === "deposit" && tx.amount > 0) { 
-      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
-    }
     await saveAuditLog('المدير', `تعديل رصيد ${user.fullName}`, { amount, reason, from: old, to: user.balance });
     res.json({ success: true, message: `تم ${parseFloat(amount) >= 0 ? 'إضافة' : 'خصم'} $${Math.abs(amount)}`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -324,22 +279,29 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
     if (tx.status !== 'pending') return res.status(400).json({ success: false, message: `بحالة ${tx.status}` });
     const user = await User.findById(tx.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-    if (tx.type === 'deposit') { user.balance = (Number(user.balance) || 0) + tx.amount; user.totalDeposit = (Number(user.totalDeposit) || 0) + tx.amount; }
-    else if (tx.type === 'withdraw') { if (user.balance < tx.amount) return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' }); user.balance = (Number(user.balance) || 0) - tx.amount; user.totalWithdrawal = (Number(user.totalWithdrawal) || 0) + tx.amount; }
+    if (tx.type === 'deposit') {
+      user.balance = (Number(user.balance) || 0) + tx.amount;
+      user.totalDeposit = (Number(user.totalDeposit) || 0) + tx.amount;
+    } else if (tx.type === 'withdraw') {
+      if (user.balance < tx.amount) return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' });
+      user.balance = (Number(user.balance) || 0) - tx.amount;
+      user.totalWithdrawal = (Number(user.totalWithdrawal) || 0) + tx.amount;
+    }
     await user.save();
 
-
-
-    // ✅ توزيع العمولات على المحيلين 
-    if (tx.type === "deposit" && tx.amount > 0) { 
-      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
+    // ✅ توزيع العمولات على المحيلين (للإيداعات فقط)
+    if (tx.type === 'deposit' && tx.amount > 0 && user.phone) {
+      await distributeReferralCommissions(user.phone, tx.amount, 'deposit');
     }
+
     tx.status = 'approved'; tx.adminAction = 'تم القبول'; await tx.save();
     processedTransactions.add(txId); setTimeout(() => processedTransactions.delete(txId), 600000);
     await saveAuditLog('المدير', `قبول طلب ${tx.type} #${txId}`, { userId: user._id, amount: tx.amount });
     const userData = user.toObject(); delete userData.password;
     res.json({ success: true, message: 'تم القبول', transaction: tx, user: userData });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 app.put('/api/admin/reject/:txId', async (req, res) => {
@@ -357,7 +319,6 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
 });
 
 app.post('/api/admin/notify/:userId', async (req, res) => {
-pi/auth/register/,/});/d
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -371,7 +332,6 @@ pi/auth/register/,/});/d
 });
 
 app.post('/api/admin/notify-all', async (req, res) => {
-pi/auth/register/,/});/d
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -383,7 +343,6 @@ pi/auth/register/,/});/d
 });
 
 app.post('/api/vip/purchase', async (req, res) => {
-pi/auth/register/,/});/d
   const { userId, vipLevel } = req.body;
   try {
     const vipPrices = { 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };
@@ -413,7 +372,3 @@ pi/auth/register/,/});/d
 
 app.listen(PORT, () => console.log(`🚀 يعمل على المنفذ ${PORT}`));
 module.exports = app;
-
-
-
-
