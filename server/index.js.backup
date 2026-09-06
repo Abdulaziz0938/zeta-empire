@@ -83,8 +83,6 @@ app.get('/api/team/:userId', async (req, res) => {
 });
 
 app.post('/api/auth/login', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { phone, password } = req.body;
   try {
     const user = await User.findOne({ phone });
@@ -98,8 +96,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/auth/register', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const userData = req.body;
   try {
     const existingUser = await User.findOne({ phone: userData.phone });
@@ -134,8 +130,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/tasks/complete', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { userId } = req.body;
   try {
     const result = await completeTasksAndDistribute(userId);
@@ -145,8 +139,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/transactions', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   try {
     const { userId, userName, phone, type, amount, network, address, txHash, fee, note } = req.body;
     if (type === 'withdraw' && !isWithdrawTimeAllowed()) {
@@ -265,8 +257,6 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
 });
 
 app.post('/api/admin/notify/:userId', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -280,8 +270,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/admin/notify-all', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -293,8 +281,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/vip/purchase', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { userId, vipLevel } = req.body;
   try {
     const vipPrices = { 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };

@@ -72,16 +72,23 @@ const TeamPage = ({ lang = 'ar' }) => {
     const userId = user._id || user.id;
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/api/team/${userId}`);
+      // جلب المباشرين (المستوى الأول)
+      const res = await fetch(`${API_BASE}/api/users/${user.phone}`);
       const data = await res.json();
       if (data.success) {
-        setTeamData({
-          A: data.team.A || [],
-          B: data.team.B || [],
-          C: data.team.C || []
-        });
-      } else {
-        console.warn('⚠️ فشل جلب بيانات الفريق:', data.message);
+        // نحتاج لجلب أعضاء الفريق بناءً على parentA, parentB, parentC
+        // لكن هذه البيانات مخزنة في المستخدمين أنفسهم، لذا سنقوم بجلبهم مباشرة من قاعدة البيانات
+        // سنستخدم واجهة جديدة أو نعدل الواجهة الحالية
+        // بدلاً من ذلك، سنعدل واجهة /api/team لتعيد المصفوفات
+        const teamRes = await fetch(`${API_BASE}/api/team/${userId}`);
+        const teamData = await teamRes.json();
+        if (teamData.success) {
+          setTeamData({
+            A: teamData.team.A || [],
+            B: teamData.team.B || [],
+            C: teamData.team.C || []
+          });
+        }
       }
     } catch (error) {
       console.error('❌ فشل جلب بيانات الفريق:', error);
