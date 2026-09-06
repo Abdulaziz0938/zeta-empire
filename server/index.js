@@ -43,19 +43,23 @@ function isWithdrawTimeAllowed() {
 const ALLOWED_WITHDRAW_AMOUNTS = [14, 25, 50, 100, 200, 500, 1000];
 
 app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
+pi/team/,/});/d
 
 app.get('/api/users', async (req, res) => {
+pi/team/,/});/d
   try { const users = await User.find().select('-password -withdrawPin'); res.json({ success: true, users }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 app.get('/api/users/:phone', async (req, res) => {
+pi/team/,/});/d
   try { const user = await User.findOne({ phone: req.params.phone }); if (!user) return res.status(404).json({ success: false, message: 'غير موجود' }); const userData = user.toObject(); delete userData.password; res.json({ success: true, user: userData }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 // ===== جلب بيانات الفريق (مع populate) =====
 app.get('/api/team/:userId', async (req, res) => {
+pi/team/,/});/d
   try {
     const user = await User.findById(req.params.userId)
       .populate('parentA', 'fullName phone vipLevel balance totalDeposit')
@@ -84,6 +88,7 @@ app.get('/api/team/:userId', async (req, res) => {
 
 // ===== تسجيل الدخول =====
 app.post('/api/auth/login', async (req, res) => {
+pi/auth/register/,/});/d
   const { phone, password } = req.body;
   try {
     const user = await User.findOne({ phone });
@@ -98,6 +103,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 // ===== تسجيل حساب جديد (مع شجرة الإحالة الصحيحة) =====
 app.post('/api/auth/register', async (req, res) => {
+pi/auth/register/,/});/d
   const userData = req.body;
   try {
     const existingUser = await User.findOne({ phone: userData.phone });
@@ -137,15 +143,20 @@ app.post('/api/auth/register', async (req, res) => {
 });
 
 app.post('/api/tasks/complete', async (req, res) => {
+pi/auth/register/,/});/d
   const { userId } = req.body;
   try {
     const result = await completeTasksAndDistribute(userId);
     if (result.success) { await saveAuditLog('النظام', `توزيع أرباح ${userId}`, { profit: result.profit }); res.json({ success: true, result }); } 
+    if (result.success && result.profit > 0) { 
+      await distributeReferralCommissions(userId, result.profit, "task"); 
+    }
     else res.status(400).json({ success: false, message: result.message });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 app.post('/api/transactions', async (req, res) => {
+pi/auth/register/,/});/d
   try {
     const { userId, userName, phone, type, amount, network, address, txHash, fee, note } = req.body;
     if (type === 'withdraw' && !isWithdrawTimeAllowed()) {
@@ -162,16 +173,19 @@ app.post('/api/transactions', async (req, res) => {
 });
 
 app.get('/api/transactions', async (req, res) => {
+pi/team/,/});/d
   try { const transactions = await Transaction.find().sort({ createdAt: -1 }); res.json({ success: true, transactions }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 app.get('/api/transactions/user/:userId', async (req, res) => {
+pi/team/,/});/d
   try { const transactions = await Transaction.find({ userId: req.params.userId }).sort({ createdAt: -1 }); res.json({ success: true, transactions }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 app.get('/api/notifications', async (req, res) => {
+pi/team/,/});/d
   try {
     const userId = req.query.userId;
     let filter = { targetUserId: null };
@@ -182,6 +196,7 @@ app.get('/api/notifications', async (req, res) => {
 });
 
 app.get('/api/admin/audit', async (req, res) => {
+pi/team/,/});/d
   try { const logs = await AuditLog.find().sort({ timestamp: -1 }).limit(50); res.json({ success: true, logs }); } 
   catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
@@ -192,6 +207,10 @@ app.put('/api/admin/promote/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     if (user.vipLevel >= 7) return res.status(400).json({ success: false, message: 'أعلى مستوى' });
     const old = user.vipLevel; user.vipLevel += 1; await user.save();
+    // ✅ توزيع العمولات على المحيلين 
+    if (tx.type === "deposit" && tx.amount > 0) { 
+      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
+    }
     await saveAuditLog('المدير', `ترقية ${user.fullName}`, { from: old, to: user.vipLevel });
     res.json({ success: true, message: `تمت الترقية إلى VIP ${user.vipLevel}`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -203,6 +222,10 @@ app.put('/api/admin/demote/:userId', async (req, res) => {
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     if (user.vipLevel <= 0) return res.status(400).json({ success: false, message: 'أدنى مستوى' });
     const old = user.vipLevel; user.vipLevel -= 1; await user.save();
+    // ✅ توزيع العمولات على المحيلين 
+    if (tx.type === "deposit" && tx.amount > 0) { 
+      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
+    }
     await saveAuditLog('المدير', `تخفيض ${user.fullName}`, { from: old, to: user.vipLevel });
     res.json({ success: true, message: `تم التخفيض إلى VIP ${user.vipLevel}`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -213,6 +236,10 @@ app.put('/api/admin/ban/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     const old = user.status; user.status = user.status === 'نشط' ? 'موقف' : 'نشط'; await user.save();
+    // ✅ توزيع العمولات على المحيلين 
+    if (tx.type === "deposit" && tx.amount > 0) { 
+      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
+    }
     await saveAuditLog('المدير', `${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'} ${user.fullName}`, { from: old, to: user.status });
     res.json({ success: true, message: `تم ${user.status === 'موقف' ? 'تجميد' : 'إلغاء تجميد'} الحساب`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -224,6 +251,10 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
     const user = await User.findById(req.params.userId);
     if (!user) return res.status(404).json({ success: false, message: 'غير موجود' });
     const old = user.balance; user.balance = (Number(user.balance) || 0) + parseFloat(amount); await user.save();
+    // ✅ توزيع العمولات على المحيلين 
+    if (tx.type === "deposit" && tx.amount > 0) { 
+      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
+    }
     await saveAuditLog('المدير', `تعديل رصيد ${user.fullName}`, { amount, reason, from: old, to: user.balance });
     res.json({ success: true, message: `تم ${parseFloat(amount) >= 0 ? 'إضافة' : 'خصم'} $${Math.abs(amount)}`, user });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
@@ -241,6 +272,10 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
     if (tx.type === 'deposit') { user.balance = (Number(user.balance) || 0) + tx.amount; user.totalDeposit = (Number(user.totalDeposit) || 0) + tx.amount; }
     else if (tx.type === 'withdraw') { if (user.balance < tx.amount) return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' }); user.balance = (Number(user.balance) || 0) - tx.amount; user.totalWithdrawal = (Number(user.totalWithdrawal) || 0) + tx.amount; }
     await user.save();
+    // ✅ توزيع العمولات على المحيلين 
+    if (tx.type === "deposit" && tx.amount > 0) { 
+      await distributeReferralCommissions(tx.userId, tx.amount, "deposit"); 
+    }
     tx.status = 'approved'; tx.adminAction = 'تم القبول'; await tx.save();
     processedTransactions.add(txId); setTimeout(() => processedTransactions.delete(txId), 600000);
     await saveAuditLog('المدير', `قبول طلب ${tx.type} #${txId}`, { userId: user._id, amount: tx.amount });
@@ -264,6 +299,7 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
 });
 
 app.post('/api/admin/notify/:userId', async (req, res) => {
+pi/auth/register/,/});/d
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -277,6 +313,7 @@ app.post('/api/admin/notify/:userId', async (req, res) => {
 });
 
 app.post('/api/admin/notify-all', async (req, res) => {
+pi/auth/register/,/});/d
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -288,6 +325,7 @@ app.post('/api/admin/notify-all', async (req, res) => {
 });
 
 app.post('/api/vip/purchase', async (req, res) => {
+pi/auth/register/,/});/d
   const { userId, vipLevel } = req.body;
   try {
     const vipPrices = { 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };
@@ -317,3 +355,44 @@ app.post('/api/vip/purchase', async (req, res) => {
 
 app.listen(PORT, () => console.log(`🚀 يعمل على المنفذ ${PORT}`));
 module.exports = app;
+// ===== توزيع العمولات على 3 مستويات =====
+async function distributeReferralCommissions(userPhone, amount, type = 'deposit') {
+  // نسب العمولات: المستوى الأول 5%، الثاني 3%، الثالث 1%
+  const rates = [0.05, 0.03, 0.01];
+  let currentPhone = userPhone;
+  let level = 0;
+  let totalCommissions = 0;
+
+  while (currentPhone && currentPhone !== 'ADMIN_MAIN' && level < 3) {
+    const parentUser = await User.findOne({ phone: currentPhone });
+    if (!parentUser || parentUser.vipLevel < 1) break; // فقط الأعضاء النشطون (VIP1+) يستحقون العمولات
+
+    const commission = amount * rates[level];
+    if (commission > 0) {
+      parentUser.balance = (parentUser.balance || 0) + commission;
+      parentUser.totalEarnings = (parentUser.totalEarnings || 0) + commission;
+      parentUser.totalReferralCommissions = (parentUser.totalReferralCommissions || 0) + commission;
+      if (type === 'deposit') parentUser.referralEarnings = (parentUser.referralEarnings || 0) + commission;
+      await parentUser.save();
+
+      // تسجيل العمولة في سجل العمولات (commission_log)
+      const logEntry = {
+        userId: parentUser._id,
+        phone: parentUser.phone,
+        type: type,
+        amount: commission,
+        source: userPhone,
+        level: level + 1,
+        timestamp: Date.now()
+      };
+      // يمكن حفظها في collection منفصل إذا أردت
+      console.log(`✅ عمولة المستوى ${level+1} (${rates[level]*100}%): ${commission} للمستخدم ${parentUser.phone}`);
+      totalCommissions += commission;
+    }
+
+    currentPhone = parentUser.parent;
+    level++;
+  }
+
+  return totalCommissions;
+}

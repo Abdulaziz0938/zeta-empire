@@ -4,10 +4,11 @@ import { useZeta } from '../context/ZetaContext.jsx';
 
 const TeamPage = ({ lang = 'ar' }) => {
   const { user, refreshUser } = useZeta();
-  const [activeTab, setActiveTab] = useState('A');
+  const [activeTab, setActiveTab] = useState('level1');
   const [copied, setCopied] = useState(false);
-  const [teamData, setTeamData] = useState({ A: [], B: [], C: [] });
+  const [teamData, setTeamData] = useState({ level1: [], level2: [], level3: [] });
   const [loading, setLoading] = useState(true);
+  const [totalCommissions, setTotalCommissions] = useState(0);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
 
   if (!user) {
@@ -29,16 +30,16 @@ const TeamPage = ({ lang = 'ar' }) => {
       copyCode: "نسخ الكود",
       copied: "تم النسخ!",
       totalTeam: "إجمالي الفريق",
-      totalPassive: "إجمالي الدخل السلبي",
-      classA: "الفئة A (مباشر 5%)",
-      classB: "الفئة B (فرعي 3%)",
-      classC: "الفئة C (فرعي 1%)",
+      totalPassive: "إجمالي العمولات المستلمة",
+      level1: "المستوى الأول (مباشر 5%)",
+      level2: "المستوى الثاني (3%)",
+      level3: "المستوى الثالث (1%)",
       phone: "رقم الهاتف",
       vipLevel: "المستوى",
-      contractAmount: "مبلغ العقد",
+      contractAmount: "قيمة العقد",
       passiveEarned: "الدخل السلبي منه",
       noMembers: "لا يوجد أعضاء في هذه الفئة حالياً",
-      priorityBadge: "أولوية مباشرة",
+      priorityBadge: "المستوى المباشر",
       totalReferrals: "إجمالي الإحالات",
       loading: "جاري تحميل بيانات الفريق..."
     },
@@ -49,16 +50,16 @@ const TeamPage = ({ lang = 'ar' }) => {
       copyCode: "Copy Code",
       copied: "Copied!",
       totalTeam: "Total Team Members",
-      totalPassive: "Total Passive Earnings",
-      classA: "Class A (Direct 5%)",
-      classB: "Class B (Sub 3%)",
-      classC: "Class C (Sub 1%)",
+      totalPassive: "Total Commissions Received",
+      level1: "Level 1 (Direct 5%)",
+      level2: "Level 2 (3%)",
+      level3: "Level 3 (1%)",
       phone: "Phone Number",
       vipLevel: "Level",
       contractAmount: "Contract Value",
       passiveEarned: "Passive Profit",
       noMembers: "No members found in this class yet",
-      priorityBadge: "Direct Priority",
+      priorityBadge: "Direct Level",
       totalReferrals: "Total Referrals",
       loading: "Loading team data..."
     }
@@ -72,23 +73,17 @@ const TeamPage = ({ lang = 'ar' }) => {
     const userId = user._id || user.id;
     try {
       setLoading(true);
-      // جلب المباشرين (المستوى الأول)
-      const res = await fetch(`${API_BASE}/api/users/${user.phone}`);
+      const res = await fetch(`${API_BASE}/api/team/${userId}`);
       const data = await res.json();
       if (data.success) {
-        // نحتاج لجلب أعضاء الفريق بناءً على parentA, parentB, parentC
-        // لكن هذه البيانات مخزنة في المستخدمين أنفسهم، لذا سنقوم بجلبهم مباشرة من قاعدة البيانات
-        // سنستخدم واجهة جديدة أو نعدل الواجهة الحالية
-        // بدلاً من ذلك، سنعدل واجهة /api/team لتعيد المصفوفات
-        const teamRes = await fetch(`${API_BASE}/api/team/${userId}`);
-        const teamData = await teamRes.json();
-        if (teamData.success) {
-          setTeamData({
-            A: teamData.team.A || [],
-            B: teamData.team.B || [],
-            C: teamData.team.C || []
-          });
-        }
+        setTeamData({
+          level1: data.team.level1 || [],
+          level2: data.team.level2 || [],
+          level3: data.team.level3 || []
+        });
+        setTotalCommissions(data.totalReferralCommissions || 0);
+      } else {
+        console.warn('⚠️ فشل جلب بيانات الفريق:', data.message);
       }
     } catch (error) {
       console.error('❌ فشل جلب بيانات الفريق:', error);
@@ -109,10 +104,7 @@ const TeamPage = ({ lang = 'ar' }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const totalMembers = teamData.A.length + teamData.B.length + teamData.C.length;
-  const totalPassiveEarnings = [
-    ...teamData.A, ...teamData.B, ...teamData.C
-  ].reduce((acc, m) => acc + (m.totalDeposit ? m.totalDeposit * 0.05 : 0), 0);
+  const totalMembers = teamData.level1.length + teamData.level2.length + teamData.level3.length;
   const totalReferrals = user?.referrals || 0;
 
   if (loading) {
@@ -156,7 +148,7 @@ const TeamPage = ({ lang = 'ar' }) => {
             <Users className="w-12 h-12 text-[#00f3ff] drop-shadow-[0_0_12px_#00f3ff]" />
           </div>
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
-            <div><p className="text-xs text-cyan-300/70 uppercase">{t.totalPassive}</p><h3 className="text-3xl font-extrabold text-green-400 mt-1">${totalPassiveEarnings.toFixed(2)}</h3></div>
+            <div><p className="text-xs text-cyan-300/70 uppercase">{t.totalPassive}</p><h3 className="text-3xl font-extrabold text-green-400 mt-1">${totalCommissions.toFixed(2)}</h3></div>
             <TrendingUp className="w-12 h-12 text-green-400 drop-shadow-[0_0_12px_#22c55e]" />
           </div>
           <div className="bg-[#00f3ff]/[0.03] backdrop-blur-xl border border-[#00f3ff]/20 rounded-3xl p-6 flex items-center justify-between shadow-[0_0_20px_rgba(0,243,255,0.1)]">
@@ -167,9 +159,9 @@ const TeamPage = ({ lang = 'ar' }) => {
 
         <div className="flex gap-2 p-1.5 bg-[#00f3ff]/[0.03] border border-[#00f3ff]/20 rounded-2xl backdrop-blur-md">
           {[
-            { key: 'A', name: t.classA, count: teamData.A.length, priority: true },
-            { key: 'B', name: t.classB, count: teamData.B.length, priority: false },
-            { key: 'C', name: t.classC, count: teamData.C.length, priority: false }
+            { key: 'level1', name: t.level1, count: teamData.level1.length, priority: true },
+            { key: 'level2', name: t.level2, count: teamData.level2.length, priority: false },
+            { key: 'level3', name: t.level3, count: teamData.level3.length, priority: false }
           ].map((tab) => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)} className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === tab.key ? 'bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 shadow-[0_0_20px_rgba(0,243,255,0.5)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <span>{tab.name}</span>
@@ -178,10 +170,10 @@ const TeamPage = ({ lang = 'ar' }) => {
           ))}
         </div>
 
-        {activeTab === 'A' && (
+        {activeTab === 'level1' && (
           <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-2xl p-4 flex items-center gap-3 text-cyan-300 text-sm">
             <Crown className="w-5 h-5 text-yellow-400 drop-shadow-[0_0_8px_#fde047]" />
-            <span>{t.priorityBadge}: الأعضاء المباشرين يمنحونك 5% دخل سلبي يومي من إجمالي أرباح مهامهم.</span>
+            <span>{t.priorityBadge}: الأعضاء المباشرين يمنحونك 5% دخل سلبي من كل إيداع ومهمة.</span>
           </div>
         )}
 

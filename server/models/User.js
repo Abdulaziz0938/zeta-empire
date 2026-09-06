@@ -2,28 +2,37 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  fullName: { type: String, required: true },
+  fullName: { type: String, default: '' },
   phone: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   withdrawPin: { type: String, required: true, maxlength: 6, minlength: 6 },
   inviteCode: { type: String, required: true, unique: true },
-  referredBy: { type: String, default: null },
-  parentA: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  parentB: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-  parentC: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  
+  // ✅ شجرة الإحالة (باستخدام رقم الهاتف)
+  parent: { type: String, default: 'ADMIN_MAIN' }, // رقم هاتف المُحيل المباشر
+  
+  // المستويات والأرصدة
   vipLevel: { type: Number, default: 0 },
   balance: { type: Number, default: 0 },
   totalDeposit: { type: Number, default: 0 },
   totalWithdrawal: { type: Number, default: 0 },
+  
+  // الأرباح
   dailyEarnings: { type: Number, default: 0 },
   weeklyEarnings: { type: Number, default: 0 },
   monthlyEarnings: { type: Number, default: 0 },
   totalEarnings: { type: Number, default: 0 },
   referralEarnings: { type: Number, default: 0 },
-  referrals: { type: Number, default: 0 },
+  totalReferralCommissions: { type: Number, default: 0 }, // ✅ العمولات الكلية من الإحالات
+  
+  // الإحالات
+  referrals: { type: Number, default: 0 }, // عدد الإحالات المباشرة
+  
+  // المهام
   tasksCompletedToday: { type: Number, default: 0 },
   lastTaskDate: { type: Date, default: null },
-  status: { type: String, default: 'نشط' }
+  status: { type: String, default: 'نشط' },
+  isAdmin: { type: Boolean, default: false }
 }, { timestamps: true });
 
 userSchema.pre('save', async function(next) {
