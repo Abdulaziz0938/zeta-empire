@@ -68,9 +68,9 @@ app.get('/api/team/:userId', async (req, res) => {
 
     // ✅ تحويل الكائنات إلى مصفوفات (الحل النهائي)
     const team = {
-      A: user.parentA ? [user.parentA] : [],
-      B: user.parentB ? [user.parentB] : [],
-      C: user.parentC ? [user.parentC] : []
+      A: user.parentA ? (Array.isArray(user.parentA) ? user.parentA : [user.parentA]) : [],
+      B: user.parentB ? (Array.isArray(user.parentB) ? user.parentB : [user.parentB]) : [],
+      C: user.parentC ? (Array.isArray(user.parentC) ? user.parentC : [user.parentC]) : []
     };
 
     console.log('📦 بيانات الفريق (مصفوفات):', team);
@@ -82,9 +82,8 @@ app.get('/api/team/:userId', async (req, res) => {
   }
 });
 
+// ===== تسجيل الدخول =====
 app.post('/api/auth/login', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { phone, password } = req.body;
   try {
     const user = await User.findOne({ phone });
@@ -97,45 +96,47 @@ pi/auth/register/,/});/c
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ===== تسجيل حساب جديد (مع شجرة الإحالة الصحيحة) =====
 app.post('/api/auth/register', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const userData = req.body;
   try {
     const existingUser = await User.findOne({ phone: userData.phone });
     if (existingUser) return res.status(400).json({ success: false, message: 'رقم الهاتف مسجل بالفعل' });
 
-    const newUser = new User(userData);
+    // 1. البحث عن المُحيل (إذا وجد)
+    let referrer = null;
+    if (userData.referralCode) {
+      referrer = await User.findOne({ inviteCode: userData.referralCode });
+    }
+
+    // 2. بناء بيانات المستخدم الجديد مع شجرة الإحالة الصحيحة
+    const newUserData = {
+      ...userData,
+      parentA: referrer ? referrer._id : null,
+      parentB: referrer ? referrer.parentA : null,
+      parentC: referrer ? referrer.parentB : null
+    };
+
+    const newUser = new User(newUserData);
     await newUser.save();
 
-    if (userData.referralCode) {
-      const referrer = await User.findOne({ inviteCode: userData.referralCode });
-      if (referrer) {
-        referrer.referrals = (referrer.referrals || 0) + 1;
-        if (!referrer.parentA) {
-          referrer.parentA = newUser._id;
-        } else if (!referrer.parentB) {
-          referrer.parentB = newUser._id;
-        } else if (!referrer.parentC) {
-          referrer.parentC = newUser._id;
-        } else {
-          referrer.parentC = newUser._id;
-        }
-        await referrer.save();
-      }
+    // 3. زيادة عدد الإحالات للمُحيل المباشر
+    if (referrer) {
+      referrer.referrals = (referrer.referrals || 0) + 1;
+      await referrer.save();
     }
 
     const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
-    const response = newUser.toObject(); delete response.password;
+    const response = newUser.toObject();
+    delete response.password;
     res.status(201).json({ success: true, user: response, token });
   } catch (error) {
+    console.error('❌ خطأ في التسجيل:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
 app.post('/api/tasks/complete', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { userId } = req.body;
   try {
     const result = await completeTasksAndDistribute(userId);
@@ -145,8 +146,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/transactions', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   try {
     const { userId, userName, phone, type, amount, network, address, txHash, fee, note } = req.body;
     if (type === 'withdraw' && !isWithdrawTimeAllowed()) {
@@ -265,8 +264,6 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
 });
 
 app.post('/api/admin/notify/:userId', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -280,8 +277,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/admin/notify-all', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'اكتب رسالة' });
   try {
@@ -293,8 +288,6 @@ pi/auth/register/,/});/c
 });
 
 app.post('/api/vip/purchase', async (req, res) => {
-pi/auth/register/,/});/c
-// تم استبدال الدالة بالكود الجديد من register_fix.js
   const { userId, vipLevel } = req.body;
   try {
     const vipPrices = { 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };
