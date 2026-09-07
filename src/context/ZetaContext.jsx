@@ -44,6 +44,7 @@ export const ZetaProvider = ({ children }) => {
         const updatedUser = data.user;
         setUser(updatedUser);
         localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
+        console.log('✅ تم تحديث بيانات المستخدم:', updatedUser.fullName, 'الرصيد:', updatedUser.balance);
         return updatedUser;
       }
     } catch (error) {
@@ -57,6 +58,7 @@ export const ZetaProvider = ({ children }) => {
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
     localStorage.setItem('zeta_user', JSON.stringify(updatedUser));
+    console.log('⚡ تحديث فوري للمستخدم:', updatedUser.fullName, 'الرصيد:', updatedUser.balance);
   };
 
   const value = {

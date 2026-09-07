@@ -42,30 +42,55 @@ function isWithdrawTimeAllowed() {
 
 const ALLOWED_WITHDRAW_AMOUNTS = [14, 25, 50, 100, 200, 500, 1000];
 
-// ===== توزيع العمولات على 3 مستويات =====
+// ============================================================
+// ✅ دالة توزيع العمولات (نسخة صحيحة)
+// ============================================================
 async function distributeReferralCommissions(userPhone, amount, type = 'deposit') {
+  // نسب العمولات: المستوى الأول 5%، الثاني 3%، الثالث 1%
   const rates = [0.05, 0.03, 0.01];
   let currentPhone = userPhone;
   let level = 0;
   let totalCommissions = 0;
 
+  console.log(`📊 توزيع العمولات: ${type} بمبلغ $${amount} من ${userPhone}`);
+
   while (currentPhone && currentPhone !== 'ADMIN_MAIN' && level < 3) {
     const parentUser = await User.findOne({ phone: currentPhone });
-    if (!parentUser || parentUser.vipLevel < 1) break;
+    
+    // ✅ التحقق من وجود المستخدم وأن لديه VIP 1 أو أعلى
+    if (!parentUser) {
+      console.log(`⚠️ المستخدم ${currentPhone} غير موجود`);
+      break;
+    }
+    
+    if (parentUser.vipLevel < 1) {
+      console.log(`⏭️ ${parentUser.phone} ليس VIP (VIP ${parentUser.vipLevel})، تخطي`);
+      // ✅ لا نكسر الحلقة، ننتقل إلى المستوى التالي
+      currentPhone = parentUser.parent;
+      level++;
+      continue;
+    }
 
     const commission = amount * rates[level];
     if (commission > 0) {
       parentUser.balance = (parentUser.balance || 0) + commission;
       parentUser.totalEarnings = (parentUser.totalEarnings || 0) + commission;
       parentUser.totalReferralCommissions = (parentUser.totalReferralCommissions || 0) + commission;
-      if (type === 'deposit') parentUser.referralEarnings = (parentUser.referralEarnings || 0) + commission;
+      
+      if (type === 'deposit') {
+        parentUser.referralEarnings = (parentUser.referralEarnings || 0) + commission;
+      }
+      
       await parentUser.save();
-      console.log(`✅ عمولة المستوى ${level+1} (${rates[level]*100}%): ${commission} للمستخدم ${parentUser.phone}`);
+      console.log(`✅ عمولة المستوى ${level+1} (${rates[level]*100}%): $${commission} للمستخدم ${parentUser.phone} (VIP ${parentUser.vipLevel})`);
       totalCommissions += commission;
     }
+
     currentPhone = parentUser.parent;
     level++;
   }
+
+  console.log(`✅ إجمالي العمولات الموزعة: $${totalCommissions}`);
   return totalCommissions;
 }
 
@@ -126,7 +151,7 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
-// ===== تسجيل حساب جديد (مع شجرة الإحالة) =====
+// ===== تسجيل حساب جديد =====
 app.post('/api/auth/register', async (req, res) => {
   const userData = req.body;
   try {
@@ -170,7 +195,8 @@ app.post('/api/tasks/complete', async (req, res) => {
     const result = await completeTasksAndDistribute(userId);
     if (result.success) {
       await saveAuditLog('النظام', `توزيع أرباح ${userId}`, { profit: result.profit });
-      // ✅ توزيع العمولات على المحيلين
+      
+      // ✅ توزيع العمولات (الدخل السلبي) من أرباح المهام فقط
       if (result.profit > 0) {
         const user = await User.findById(userId);
         if (user && user.phone) {
@@ -270,6 +296,7 @@ app.put('/api/admin/balance/:userId', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ===== قبول الإيداع (مع توزيع العمولات) =====
 app.put('/api/admin/approve/:txId', async (req, res) => {
   const txId = req.params.txId;
   if (processedTransactions.has(txId)) return res.status(409).json({ success: false, message: 'تمت المعالجة مسبقاً' });
@@ -279,6 +306,7 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
     if (tx.status !== 'pending') return res.status(400).json({ success: false, message: `بحالة ${tx.status}` });
     const user = await User.findById(tx.userId);
     if (!user) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    
     if (tx.type === 'deposit') {
       user.balance = (Number(user.balance) || 0) + tx.amount;
       user.totalDeposit = (Number(user.totalDeposit) || 0) + tx.amount;
@@ -289,8 +317,8 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
     }
     await user.save();
 
-    // ✅ توزيع العمولات على المحيلين (للإيداعات فقط)
-    if (tx.type === 'deposit' && tx.amount > 0 && user.phone) {
+    // ✅ توزيع العمولات (عمولة الإحالة من الإيداع) فقط إذا كان المستخدم لديه مُحيل
+    if (tx.type === 'deposit' && tx.amount > 0 && user.phone && user.parent && user.parent !== 'ADMIN_MAIN') {
       await distributeReferralCommissions(user.phone, tx.amount, 'deposit');
     }
 
@@ -342,6 +370,9 @@ app.post('/api/admin/notify-all', async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
+// ============================================================
+// ✅ شراء VIP (نسخة معدلة - لا تزيد totalDeposit)
+// ============================================================
 app.post('/api/vip/purchase', async (req, res) => {
   const { userId, vipLevel } = req.body;
   try {
@@ -349,9 +380,10 @@ app.post('/api/vip/purchase', async (req, res) => {
     if (!vipPrices[vipLevel]) return res.status(400).json({ success: false, message: 'مستوى غير صحيح' });
     const totalCost = vipPrices[vipLevel];
 
+    // ✅ عملية ذرية: خصم الرصيد ورفع المستوى فقط (بدون زيادة totalDeposit)
     const user = await User.findOneAndUpdate(
       { _id: userId, balance: { $gte: totalCost }, vipLevel: { $lt: vipLevel } },
-      { $inc: { balance: -totalCost, totalDeposit: totalCost }, $set: { vipLevel: vipLevel } },
+      { $inc: { balance: -totalCost }, $set: { vipLevel: vipLevel } },
       { new: true }
     );
 
@@ -363,11 +395,36 @@ app.post('/api/vip/purchase', async (req, res) => {
       return res.status(400).json({ success: false, message: 'خطأ غير متوقع' });
     }
 
-    const transaction = new Transaction({ userId: user._id, userName: user.fullName, phone: user.phone, type: 'deposit', amount: totalCost, network: 'SYSTEM', status: 'approved', note: `شراء VIP ${vipLevel}` });
+    // تسجيل المعاملة كمرجع (نوعها 'purchase' وليس 'deposit')
+    const transaction = new Transaction({
+      userId: user._id,
+      userName: user.fullName,
+      phone: user.phone,
+      type: 'purchase',
+      amount: totalCost,
+      network: 'SYSTEM',
+      fee: 0,
+      status: 'approved',
+      note: `شراء VIP ${vipLevel} (بخصم $${totalCost} من الرصيد)`
+    });
     await transaction.save();
-    const userData = user.toObject(); delete userData.password;
-    res.json({ success: true, message: `✅ تم شراء VIP ${vipLevel}`, user: { vipLevel: userData.vipLevel, balance: userData.balance, totalDeposit: userData.totalDeposit } });
-  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+
+    const userData = user.toObject();
+    delete userData.password;
+
+    res.json({
+      success: true,
+      message: `✅ تم شراء VIP ${vipLevel} بنجاح!`,
+      user: {
+        vipLevel: userData.vipLevel,
+        balance: userData.balance,
+        totalDeposit: userData.totalDeposit // لم تتغير
+      }
+    });
+  } catch (error) {
+    console.error('❌ خطأ في شراء VIP:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
 });
 
 app.listen(PORT, () => console.log(`🚀 يعمل على المنفذ ${PORT}`));
