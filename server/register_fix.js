@@ -4,28 +4,29 @@ app.post('/api/auth/register', async (req, res) => {
     const existingUser = await User.findOne({ phone: userData.phone });
     if (existingUser) return res.status(400).json({ success: false, message: 'رقم الهاتف مسجل بالفعل' });
 
-    // 1. البحث عن المُحيل (إذا وجد)
-    let referrer = null;
+    // ✅ البحث عن المُحيل باستخدام كود الإحالة
+    let parentPhone = 'ADMIN_MAIN';
     if (userData.referralCode) {
-      referrer = await User.findOne({ inviteCode: userData.referralCode });
+      const referrer = await User.findOne({ inviteCode: userData.referralCode });
+      if (referrer) {
+        parentPhone = referrer.phone;
+        // زيادة عدد الإحالات للمُحيل
+        referrer.referrals = (referrer.referrals || 0) + 1;
+        await referrer.save();
+      }
     }
 
-    // 2. بناء بيانات المستخدم الجديد مع شجرة الإحالة الصحيحة
-    const newUserData = {
+    // إنشاء المستخدم الجديد
+    const newUser = new User({
       ...userData,
-      parentA: referrer ? referrer._id : null,
-      parentB: referrer ? referrer.parentA : null,
-      parentC: referrer ? referrer.parentB : null
-    };
-
-    const newUser = new User(newUserData);
+      parent: parentPhone,
+      balance: 2, // مكافأة ترحيبية
+      totalEarning: 0,
+      dailyEarnings: 0,
+      referrals: 0,
+      totalReferralCommissions: 0
+    });
     await newUser.save();
-
-    // 3. زيادة عدد الإحالات للمُحيل المباشر
-    if (referrer) {
-      referrer.referrals = (referrer.referrals || 0) + 1;
-      await referrer.save();
-    }
 
     const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
     const response = newUser.toObject();
