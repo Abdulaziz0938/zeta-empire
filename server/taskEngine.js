@@ -1,35 +1,17 @@
 const User = require('./models/User');
 const Transaction = require('./models/Transaction');
-const { distributeReferralCommissions } = require('./referral'); // تأكد من استيراد دالة العمولات
+const { distributeReferralCommissions } = require('./referral');
 
 async function completeTasksAndDistribute(userId) {
   try {
+    // ============================================================
+    // 1. حساب قيمة الربح للمهمة الواحدة (نحسبها يدوياً لمنع التلاعب)
+    // ============================================================
     const user = await User.findById(userId);
     if (!user) {
       return { success: false, message: 'المستخدم غير موجود' };
     }
 
-    // ============================================================
-    // ✅ منطق QQmony: التحقق من اليوم وإعادة التعيين التلقائي
-    // ============================================================
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const lastDate = user.lastTaskDate ? new Date(user.lastTaskDate) : null;
-    if (lastDate) lastDate.setHours(0, 0, 0, 0);
-
-    // إذا كان اليوم مختلفاً عن آخر تاريخ للمهام، نعيد التعيين (تماماً مثل QQmony)
-    if (!lastDate || lastDate.getTime() !== today.getTime()) {
-      console.log(`🔄 إعادة تعيين مهام المستخدم ${user.phone} ليوم جديد`);
-      user.tasksCompletedToday = 0;
-      user.dailyEarnings = 0;
-      user.lastTaskDate = new Date();
-      // ✅ لا نقوم بحفظ هنا، لأننا سنحفظ في نهاية الدالة بعد إضافة الربح الجديد
-      // لكننا نعدل الكائن مباشرة
-    }
-
-    // ============================================================
-    // ✅ التحقق من صلاحية VIP وحساب الربح (مأخوذ من QQmony)
-    // ============================================================
     const vipContract = { 0: 0, 1: 50, 2: 100, 3: 200, 4: 400, 5: 800, 6: 1600, 7: 3200 };
     const vipRates = { 0: 0, 1: 4.0, 2: 4.5, 3: 5.0, 4: 5.5, 5: 6.0, 6: 6.5, 7: 7.0 };
 
@@ -37,68 +19,77 @@ async function completeTasksAndDistribute(userId) {
     const contractAmount = vipContract[user.vipLevel] || 0;
     const totalDailyProfit = contractAmount * (rate / 100);
 
-    // ✅ إذا كان المستوى VIP 0 أو الربح صفر، لا يمكن تنفيذ المهام
     if (totalDailyProfit <= 0) {
       return { success: false, message: 'لا توجد أرباح (تحتاج عقد VIP نشط)' };
     }
 
-    // ✅ التحقق من أن المهام لم تُنجز اليوم بالكامل (5 مهام)
-    if (user.tasksCompletedToday >= 5) {
-      return { success: false, message: 'تم إكمال جميع مهام اليوم بالفعل' };
-    }
-
-    // ============================================================
-    // ✅ حساب ربح المهمة الواحدة (تماماً مثل QQmony)
-    // ============================================================
     const profitPerTask = totalDailyProfit / 5;
 
     // ============================================================
-    // ✅ تحديث بيانات المستخدم (إضافة الربح)
+    // 2. عملية ذرية 100% (Atomic Update) - تمنع أي شكل من أشكال الغش
     // ============================================================
-    const newTasksCompleted = (user.tasksCompletedToday || 0) + 1;
-    const newDailyEarnings = (user.dailyEarnings || 0) + profitPerTask;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    user.tasksCompletedToday = newTasksCompleted;
-    user.dailyEarnings = newDailyEarnings;
-    user.balance = (user.balance || 0) + profitPerTask;
-    user.totalEarnings = (user.totalEarnings || 0) + profitPerTask;
-    user.lastTaskDate = new Date(); // تحديث آخر تاريخ
-
-    await user.save();
-    console.log(`✅ تم إنجاز مهمة للمستخدم ${user.phone} (${newTasksCompleted}/5) +$${profitPerTask}`);
+    // ✅ الشرط: يجب أن يكون عدد المهام أقل من 5 (لم يكملها بعد)
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: userId,
+        tasksCompletedToday: { $lt: 5 } // 🔥 هذا الشرط هو خط الدفاع الأخير
+      },
+      {
+        $inc: {
+          tasksCompletedToday: 1,
+          balance: profitPerTask,
+          dailyEarnings: profitPerTask,
+          totalEarnings: profitPerTask
+        },
+        $set: {
+          lastTaskDate: new Date()
+        }
+      },
+      { new: true } // إرجاع المستند الجديد بعد التحديث
+    );
 
     // ============================================================
-    // ✅ تسجيل المعاملة (Transaction)
+    // 3. إذا لم يتم العثور على مستند، هذا يعني أن المهام مكتملة (5/5)
+    // أو أن هناك محاولة غش (لأن الشرط فشل)
+    // ============================================================
+    if (!updatedUser) {
+      return { success: false, message: 'تم إكمال جميع مهام اليوم بالفعل أو حدث تعارض في الطلب' };
+    }
+
+    // ============================================================
+    // 4. تسجيل المعاملة (فقط إذا نجحت العملية الذرية)
     // ============================================================
     const transaction = new Transaction({
-      userId: user._id,
-      userName: user.fullName,
-      phone: user.phone,
+      userId: updatedUser._id,
+      userName: updatedUser.fullName,
+      phone: updatedUser.phone,
       type: 'commission',
       amount: profitPerTask,
       network: 'SYSTEM',
       status: 'approved',
-      note: `أرباح يومية VIP ${user.vipLevel} (${rate}%) - مهمة ${newTasksCompleted}/5`
+      note: `أرباح يومية VIP ${updatedUser.vipLevel} (${rate}%) - مهمة ${updatedUser.tasksCompletedToday}/5`
     });
     await transaction.save();
 
     // ============================================================
-    // ✅ توزيع عمولات الإحالة (الدخل السلبي) - (كما في QQmony)
+    // 5. توزيع عمولات الإحالة (الدخل السلبي)
     // ============================================================
-    // ملاحظة: distributeReferralCommissions موجودة في referral.js
-    // وتوزع 5%، 3%، 1% على المستويات الثلاثة
-    if (user.phone && profitPerTask > 0) {
-      // نمرر رقم هاتف المستخدم والمبلغ (ربح المهمة)
-      await distributeReferralCommissions(user.phone, profitPerTask, 'task');
+    if (updatedUser.phone && profitPerTask > 0) {
+      await distributeReferralCommissions(updatedUser.phone, profitPerTask, 'task');
     }
+
+    console.log(`✅ تم إنجاز مهمة للمستخدم ${updatedUser.phone} (${updatedUser.tasksCompletedToday}/5) +$${profitPerTask}`);
 
     return {
       success: true,
       message: 'تم توزيع الأرباح',
       profit: profitPerTask,
-      newBalance: user.balance,
-      tasksCompleted: user.tasksCompletedToday,
-      dailyEarnings: user.dailyEarnings
+      newBalance: updatedUser.balance,
+      tasksCompleted: updatedUser.tasksCompletedToday,
+      dailyEarnings: updatedUser.dailyEarnings
     };
 
   } catch (error) {
