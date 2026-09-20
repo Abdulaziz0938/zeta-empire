@@ -37,6 +37,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const [notificationMessage, setNotificationMessage] = useState('');
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [supportMessages, setSupportMessages] = useState([]);
+  const [isLoadingSupport, setIsLoadingSupport] = useState(false);
+  const [replyModal, setReplyModal] = useState({ open: false, message: null, reply: "" });
+  const [isSendingReply, setIsSendingReply] = useState(false);
 
   // ===== حالات نظام الدعم =====
   const [supportMessages, setSupportMessages] = useState([]);
