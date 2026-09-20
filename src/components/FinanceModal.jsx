@@ -64,7 +64,7 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
   };
 
   const depositNetworks = ['TRC20', 'BEP20'];
-  const withdrawNetworks = ['TRC20', 'BEP20', 'ShamCash'];
+  const withdrawNetworks = ['TRC20', 'BEP20'];
   const currentNetworks = activeTab === 'deposit' ? depositNetworks : withdrawNetworks;
 
   // عند تغيير التبويب، نعيد تعيين الشبكة إذا كانت ShamCash غير مسموحة
