@@ -8,6 +8,7 @@ const Notification = require('./models/Notification');
 const User = require('./models/User');
 const Transaction = require('./models/Transaction');
 const AuditLog = require('./models/AuditLog');
+const SupportMessage = require('./models/SupportMessage');
 const { completeTasksAndDistribute } = require('./taskEngine');
 require('./cronJobs');
 
@@ -478,7 +479,93 @@ app.post('/api/tasks/reset', async (req, res) => {
   }
 });
 
+// ============================================================
+// ✅ نظام التواصل مع المشرف (Support System)
+// ============================================================
 
+// 1. إرسال رسالة للمشرف (من المستخدم)
+app.post('/api/support/message', async (req, res) => {
+  const { userId, message } = req.body;
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    }
+    if (!message || !message.trim()) {
+      return res.status(400).json({ success: false, message: 'الرسالة فارغة' });
+    }
+
+    const newMsg = new SupportMessage({
+      userId: user._id,
+      userName: user.fullName,
+      userPhone: user.phone,
+      message: message.trim()
+    });
+    await newMsg.save();
+    console.log(`📩 رسالة دعم جديدة من ${user.phone}: ${message}`);
+    res.json({ success: true, message: 'تم إرسال رسالتك للمشرف', supportMessage: newMsg });
+  } catch (error) {
+    console.error('❌ خطأ في إرسال رسالة الدعم:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 2. جلب رسائل الدعم للمستخدم (لمشاهدة الردود)
+app.get('/api/support/my-messages/:userId', async (req, res) => {
+  try {
+    const messages = await SupportMessage.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    res.json({ success: true, messages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 3. جلب جميع رسائل الدعم (للمشرف)
+app.get('/api/support/all', async (req, res) => {
+  try {
+    const messages = await SupportMessage.find().sort({ createdAt: -1 });
+    res.json({ success: true, messages });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 4. رد المشرف على رسالة دعم
+
+// 5. حذف رسالة دعم (للمشرف)
+
+// 4. رد المشرف على رسالة دعم
+
+// 5. حذف رسالة دعم (للمشرف)
+
+
+// 4. رد المشرف على رسالة دعم
+
+// 5. حذف رسالة دعم (للمشرف)
+
+app.put('/api/admin/support/reply/:messageId', async (req, res) => {
+  const { reply } = req.body;
+  try {
+    const msg = await SupportMessage.findById(req.params.messageId);
+    msg.reply = reply.trim();
+    msg.status = 'replied';
+    msg.repliedAt = new Date();
+    msg.repliedBy = 'المشرف';
+    await msg.save();
+    try {
+      const notif = new Notification({ message: `📬 تم الرد على استفسارك: ${reply.substring(0, 50)}...`, type: 'info', sender: 'المشرف', targetUserId: msg.userId });
+      await notif.save();
+    } catch (err) { console.error('فشل إشعار الرد:', err); }
+    res.json({ success: true, message: 'تم إرسال الرد', supportMessage: msg });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+app.delete('/api/admin/support/:messageId', async (req, res) => {
+  try {
+    const result = await SupportMessage.findByIdAndDelete(req.params.messageId);
+    res.json({ success: true, message: 'تم حذف الرسالة' });
+  } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
 
 app.listen(PORT, () => console.log(`🚀 يعمل على المنفذ ${PORT}`));
 module.exports = app;
