@@ -37,10 +37,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const [notificationMessage, setNotificationMessage] = useState('');
 
   const [isProcessing, setIsProcessing] = useState(false);
-  const [supportMessages, setSupportMessages] = useState([]);
-  const [isLoadingSupport, setIsLoadingSupport] = useState(false);
-  const [replyModal, setReplyModal] = useState({ open: false, message: null, reply: "" });
-  const [isSendingReply, setIsSendingReply] = useState(false);
 
   // ===== حالات نظام الدعم =====
   const [supportMessages, setSupportMessages] = useState([]);
@@ -104,6 +100,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   useEffect(() => {
     fetchData();
 
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // ===== نظام الدعم: جلب الرسائل =====
   const fetchSupportMessages = async () => {
     setIsLoadingSupport(true);
@@ -151,9 +151,6 @@ const AdminPanel = ({ onBack, onNavigate }) => {
     } catch (error) { alert('❌ خطأ في الاتصال'); }
   };
 
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   // ===== جلب رسائل الدعم عند فتح التبويب =====
   useEffect(() => {
@@ -429,8 +426,24 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const headerText = isDarkMode ? 'text-white' : 'text-gray-900';
   const subText = isDarkMode ? 'text-cyan-400/80' : 'text-cyan-600';
 
+  const SupportReplyModal = replyModal.open && replyModal.message ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80" onClick={() => setReplyModal({ open: false, message: null, reply: '' })}>
+      <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6" onClick={(e) => e.stopPropagation()}>
+        <h3 className="text-xl font-black text-white mb-4">الرد على الرسالة</h3>
+        <p className="text-sm text-gray-300 mb-3">{replyModal.message.message}</p>
+        <textarea value={replyModal.reply} onChange={(e) => setReplyModal(prev => ({ ...prev, reply: e.target.value }))} rows="4" className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-white" />
+        <div className="flex gap-3 mt-6">
+          <button onClick={() => setReplyModal({ open: false, message: null, reply: '' })} className="flex-1 py-2.5 rounded-xl bg-white/5 text-gray-300">إلغاء</button>
+          <button onClick={handleSendSupportReply} disabled={isSendingReply} className="flex-1 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold">إرسال</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className={`min-h-screen ${bgColor} ${textColor} p-4 md:p-6 font-sans transition-colors duration-300`} dir="rtl">
+      {SupportReplyModal}
+
       
       {isDarkMode && (
         <div className="fixed inset-0 pointer-events-none">
