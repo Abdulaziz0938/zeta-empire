@@ -835,38 +835,9 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         {/* ===== 6. الدعم ===== */}
         {/* ============================================================ */}
         {activeTab === 'support' && (
-  <div className="bg-[#00f3ff]/[0.02] border border-[#00f3ff]/20 rounded-3xl p-6">
-    <div className="flex justify-between items-center mb-4">
-      <h3 className="text-xl font-bold text-white">📩 رسائل المستخدمين ({supportMessages.length})</h3>
-      <button onClick={fetchSupportMessages} className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold">🔄 تحديث</button>
-    </div>
-    {isLoadingSupport ? (
-      <p className="text-center py-8 text-gray-400">جاري التحميل...</p>
-    ) : supportMessages.length === 0 ? (
-      <p className="text-center py-8 text-gray-400">لا توجد رسائل دعم بعد</p>
-    ) : (
-      <div className="space-y-3">
-        {supportMessages.map((msg) => (
-          <div key={msg._id} className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-white font-bold text-sm">{msg.userName || msg.userPhone}</span>
-              <span className="text-gray-500 text-xs">{new Date(msg.createdAt).toLocaleString('ar-EG')}</span>
-            </div>
-            <p className="text-gray-200 text-sm mb-3">{msg.message}</p>
-            {msg.reply && (
-              <div className="bg-green-500/5 border-r-2 border-green-400 pr-3 py-2 rounded mb-3">
-                <p className="text-green-400 text-xs font-bold mb-1">💬 ردك:</p>
-                <p className="text-gray-200 text-sm">{msg.reply}</p>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button onClick={() => setReplyModal({ open: true, message: msg, reply: '' })} className="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs">رد</button>
-              <button onClick={() => handleDeleteSupportMessage(msg._id)} className="px-4 py-2 rounded-xl bg-red-500/20 text-red-400 font-bold text-xs">حذف</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
+  <div className="bg-[#00f3ff]/[0.02] border border-[#00f3ff]/20 rounded-3xl p-6 text-center">
+    <p className="text-white text-lg">✅ قسم الدعم يعمل</p>
+    <p className="text-gray-400 text-sm mt-2">لا توجد بيانات لعرضها حالياً</p>
   </div>
 )}
 
