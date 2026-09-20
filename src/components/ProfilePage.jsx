@@ -14,12 +14,62 @@ import {
   ShieldCheck, 
   ChevronRight,
   Zap,
-  Globe
+  Globe,
+  MessageSquare,
+  Send,
+  X,
+  RefreshCw
 } from 'lucide-react';
 
 const ProfilePage = ({ lang = 'ar', setLang }) => {
   const { user } = useZeta();
   const [activeTab, setActiveTab] = useState('all');
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [isMessagesModalOpen, setIsMessagesModalOpen] = useState(false);
+  const [supportMessage, setSupportMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [myMessages, setMyMessages] = useState([]);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+
+  // ============================================================
+  // ✅ دوال نظام التواصل مع المشرف
+  // ============================================================
+  const handleSendSupportMessage = async () => {
+    const userId = user?._id || user?.id;
+    setIsSending(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/support/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, message: supportMessage })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ تم إرسال رسالتك للمشرف بنجاح');
+        setSupportMessage('');
+        setIsSupportModalOpen(false);
+      } else alert('❌ ' + (data.message || 'حدث خطأ'));
+    } catch (error) { alert('❌ تعذر الاتصال بالخادم'); }
+    finally { setIsSending(false); }
+  };
+
+  const fetchMyMessages = async () => {
+    const userId = user?._id || user?.id;
+    setIsLoadingMessages(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/support/my-messages/${userId}`);
+      const data = await res.json();
+      if (data.success) setMyMessages(data.messages || []);
+    } catch (error) { console.error('❌ فشل جلب الرسائل:', error); }
+    finally { setIsLoadingMessages(false); }
+  };
+
+  const handleOpenMessages = () => {
+    setIsMessagesModalOpen(true);
+    fetchMyMessages();
+  };
+
 
   const t = {
     ar: {
@@ -147,6 +197,30 @@ const ProfilePage = ({ lang = 'ar', setLang }) => {
             ${(userData.balance || 0).toFixed(2)}
           </h1>
         </div>
+        {/* ✅ أزرار التواصل مع المشرف */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            onClick={() => setIsSupportModalOpen(true)}
+            className="bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 rounded-2xl p-5 flex items-center justify-between font-black shadow-[0_0_25px_rgba(0,243,255,0.4)] hover:shadow-[0_0_35px_rgba(0,243,255,0.6)] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <MessageSquare className="w-7 h-7" />
+              <span className="text-base">📩 التواصل مع المشرف</span>
+            </div>
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          <button
+            onClick={handleOpenMessages}
+            className="bg-white/5 border border-white/10 hover:border-[#00f3ff]/60 rounded-2xl p-5 flex items-center justify-between font-black transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <Receipt className="w-7 h-7 text-cyan-400" />
+              <span className="text-base text-white">📬 رسائلي السابقة</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-cyan-400" />
+          </button>
+        </div>
+
 
         {/* الإحصائيات السريعة */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -295,6 +369,92 @@ const ProfilePage = ({ lang = 'ar', setLang }) => {
         </div>
 
       </div>
+
+      {/* ============================================================ */}
+      {/* ✅ نافذة إرسال رسالة للمشرف */}
+      {/* ============================================================ */}
+      {isSupportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsSupportModalOpen(false)}>
+          <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setIsSupportModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-4">
+              <MessageSquare className="w-8 h-8 text-cyan-400" />
+              <h3 className="text-xl font-black text-white">✉️ إرسال رسالة للمشرف</h3>
+            </div>
+            <textarea
+              value={supportMessage}
+              onChange={(e) => setSupportMessage(e.target.value)}
+              placeholder="اكتب استفسارك أو مشكلتك هنا..."
+              rows="5"
+              className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none text-sm"
+            />
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setIsSupportModalOpen(false)} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10 transition-all">إلغاء</button>
+              <button
+                onClick={handleSendSupportMessage}
+                disabled={isSending}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(0,243,255,0.4)] hover:shadow-[0_0_30px_rgba(0,243,255,0.6)] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSending ? (<><RefreshCw className="w-4 h-4 animate-spin" /> جاري الإرسال...</>) : (<><Send className="w-4 h-4" /> إرسال</>)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* ✅ نافذة عرض رسائلي السابقة */}
+      {/* ============================================================ */}
+      {isMessagesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setIsMessagesModalOpen(false)}>
+          <div className="relative w-full max-w-2xl max-h-[85vh] bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setIsMessagesModalOpen(false)} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all">
+              <X className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
+              <Receipt className="w-7 h-7 text-cyan-400" />
+              <h3 className="text-xl font-black text-white">📬 رسائلي السابقة</h3>
+              <button onClick={fetchMyMessages} className="ml-auto p-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 transition-all">
+                <RefreshCw className={`w-4 h-4 ${isLoadingMessages ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {isLoadingMessages ? (
+                <div className="text-center py-8 text-gray-400">
+                  <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin text-cyan-400" />
+                  جاري التحميل...
+                </div>
+              ) : myMessages.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                  <p>لم تُرسل أي رسالة بعد</p>
+                </div>
+              ) : (
+                myMessages.map((msg) => (
+                  <div key={msg._id} className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${msg.status === 'replied' ? 'bg-green-500/20 border-green-500/30 text-green-400' : 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'}`}>
+                        {msg.status === 'replied' ? '✅ تم الرد' : '⏳ قيد الانتظار'}
+                      </span>
+                      <span className="text-[10px] text-gray-500">{new Date(msg.createdAt).toLocaleString('ar-EG')}</span>
+                    </div>
+                    <p className="text-sm text-gray-200 bg-cyan-500/5 border-r-2 border-cyan-400 pr-3 py-2 rounded">{msg.message}</p>
+                    {msg.reply && (
+                      <div className="mt-2 bg-green-500/5 border-r-2 border-green-400 pr-3 py-2 rounded">
+                        <p className="text-[11px] text-green-400 font-bold mb-1">💬 رد المشرف:</p>
+                        <p className="text-sm text-gray-200">{msg.reply}</p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
