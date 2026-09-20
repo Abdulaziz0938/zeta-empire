@@ -425,40 +425,8 @@ const AdminPanel = ({ onBack, onNavigate }) => {
   const headerText = isDarkMode ? 'text-white' : 'text-gray-900';
   const subText = isDarkMode ? 'text-cyan-400/80' : 'text-cyan-600';
 
-  // ===== نافذة الرد على رسالة الدعم =====
-  const SupportReplyModal = replyModal.open && replyModal.message ? (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setReplyModal({ open: false, message: null, reply: "" })}>
-      <div className="relative w-full max-w-md bg-[#030914]/95 border border-[#00f3ff]/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,243,255,0.2)] backdrop-blur-2xl" onClick={(e) => e.stopPropagation()}>
-        <button onClick={() => setReplyModal({ open: false, message: null, reply: "" })} className="absolute top-4 left-4 p-2 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white">
-          <XCircle className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-3 mb-4">
-          <Send className="w-8 h-8 text-cyan-400" />
-          <div>
-            <h3 className="text-xl font-black text-white">الرد على الرسالة</h3>
-            <p className="text-xs text-gray-400">إلى: {replyModal.message.userName || replyModal.message.userPhone}</p>
-          </div>
-        </div>
-        <div className="mb-4 p-3 rounded-xl bg-cyan-500/5 border-r-2 border-cyan-400">
-          <p className="text-[11px] text-cyan-400 font-bold mb-1">رسالة المستخدم:</p>
-          <p className="text-sm text-gray-200">{replyModal.message.message}</p>
-        </div>
-        <textarea value={replyModal.reply} onChange={(e) => setReplyModal(prev => ({ ...prev, reply: e.target.value }))} placeholder="اكتب ردك هنا..." rows="4" className="w-full bg-white/5 border border-white/10 focus:border-[#00f3ff] rounded-2xl px-4 py-3 text-white placeholder-gray-500 outline-none text-sm" />
-        <div className="flex gap-3 mt-6">
-          <button onClick={() => setReplyModal({ open: false, message: null, reply: "" })} className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-sm hover:bg-white/10">إلغاء</button>
-          <button onClick={handleSendSupportReply} disabled={isSendingReply} className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-sm disabled:opacity-50">
-            {isSendingReply ? 'جاري الإرسال...' : 'إرسال الرد'}
-          </button>
-        </div>
-      </div>
-    </div>
-  ) : null;
-
   return (
     <div className={`min-h-screen ${bgColor} ${textColor} p-4 md:p-6 font-sans transition-colors duration-300`} dir="rtl">
-      
-      {SupportReplyModal}
-
       
       {isDarkMode && (
         <div className="fixed inset-0 pointer-events-none">
@@ -835,11 +803,98 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         {/* ===== 6. الدعم ===== */}
         {/* ============================================================ */}
         {activeTab === 'support' && (
-  <div className="bg-[#00f3ff]/[0.02] border border-[#00f3ff]/20 rounded-3xl p-6 text-center">
-    <p className="text-white text-lg">✅ قسم الدعم يعمل</p>
-    <p className="text-gray-400 text-sm mt-2">لا توجد بيانات لعرضها حالياً</p>
-  </div>
-)}
+          <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
+            <div className="flex justify-between items-center">
+              <h3 className={`text-xl font-bold ${textColor} flex items-center gap-2`}>
+                <MessageSquare className="w-6 h-6 text-cyan-400" /> رسائل المستخدمين ({supportMessages.length})
+              </h3>
+              <button
+                onClick={fetchSupportMessages}
+                className="px-4 py-2 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingSupport ? 'animate-spin' : ''}`} />
+                تحديث
+              </button>
+            </div>
+
+            {isLoadingSupport ? (
+              <div className="text-center py-12 text-gray-400">
+                <RefreshCw className="w-10 h-10 mx-auto mb-3 animate-spin text-cyan-400" />
+                جاري التحميل...
+              </div>
+            ) : supportMessages.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                <p>لا توجد رسائل دعم بعد</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {supportMessages.map((msg) => (
+                  <div
+                    key={msg._id}
+                    className={`p-4 rounded-2xl border ${
+                      msg.status === 'replied'
+                        ? 'bg-green-500/5 border-green-500/20'
+                        : 'bg-yellow-500/5 border-yellow-500/20'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${
+                          msg.status === 'replied'
+                            ? 'bg-green-500/20 border-green-500/30 text-green-400'
+                            : 'bg-yellow-500/20 border-yellow-500/30 text-yellow-400'
+                        }`}>
+                          {msg.status === 'replied' ? '✅ تم الرد' : '⏳ قيد الانتظار'}
+                        </span>
+                        <span className="text-xs font-bold text-white">{msg.userName || 'مستخدم'}</span>
+                        <span className="text-[10px] text-cyan-400 font-mono">{msg.userPhone}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500">
+                        {new Date(msg.createdAt).toLocaleString('ar-EG')}
+                      </span>
+                    </div>
+
+                    <p className="text-sm text-gray-200 bg-cyan-500/5 border-r-2 border-cyan-400 pr-3 py-2 rounded mb-3">
+                      {msg.message}
+                    </p>
+
+                    {msg.reply && (
+                      <div className="bg-green-500/5 border-r-2 border-green-400 pr-3 py-2 rounded mb-3">
+                        <p className="text-[11px] text-green-400 font-bold mb-1">💬 ردك:</p>
+                        <p className="text-sm text-gray-200">{msg.reply}</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      {msg.status !== 'replied' ? (
+                        <button
+                          onClick={() => setReplyModal({ open: true, message: msg, reply: '' })}
+                          className="flex-1 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-[#00f3ff] text-slate-950 font-bold text-xs shadow-[0_0_15px_rgba(0,243,255,0.3)] hover:shadow-[0_0_25px_rgba(0,243,255,0.5)] transition-all flex items-center justify-center gap-2"
+                        >
+                          <Send className="w-3.5 h-3.5" /> الرد
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setReplyModal({ open: true, message: msg, reply: msg.reply || '' })}
+                          className="flex-1 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 font-bold text-xs hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" /> تعديل الرد
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteSupportMessage(msg._id)}
+                        className="px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs hover:bg-red-500/30 transition-all flex items-center gap-2"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> حذف
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
 
         {/* ===== النوافذ المنبثقة (Modals) ===== */}
