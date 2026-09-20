@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useZeta } from '../context/ZetaContext.jsx';
 import { 
   Play, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, 
   Lock, RotateCcw, Clock, TrendingUp, Award, Target, Crown 
 } from 'lucide-react';
+import { useZeta } from '../context/ZetaContext.jsx';
 
 const WorkPage = ({ lang = 'ar' }) => {
   const { user, refreshUser } = useZeta();
 
-  // ✅ التحقق من وجود المستخدم
   if (!user) {
     return (
       <div className="min-h-screen bg-[#030914] text-white flex items-center justify-center p-8">
@@ -83,6 +82,31 @@ const WorkPage = ({ lang = 'ar' }) => {
   const [showRenewMessage, setShowRenewMessage] = useState(false);
   const [allTasksDone, setAllTasksDone] = useState(completedCount === 5);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+
+  // ✅ التحقق من اليوم وإعادة تعيين المهام عند فتح الصفحة
+  useEffect(() => {
+    const checkAndResetTasks = async () => {
+      const userId = user?._id || user?.id;
+      if (!userId) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/tasks/reset`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        });
+        const data = await res.json();
+        if (data.success && data.tasksCompletedToday === 0) {
+          console.log('✅ تم تجديد المهام لليوم الجديد');
+          setCompletedCount(0);
+          setAllTasksDone(false);
+          await refreshUser();
+        }
+      } catch (error) {
+        console.error('❌ فشل التحقق من تجديد المهام:', error);
+      }
+    };
+    checkAndResetTasks();
+  }, []);
 
   const vipLevels = [
     { level: 0, commission: 0, contractAmount: 0 },
@@ -172,6 +196,8 @@ const WorkPage = ({ lang = 'ar' }) => {
         });
         const data = await res.json();
         if (data.success) {
+          setCompletedCount(5);
+          setAllTasksDone(true);
           setShowRenewMessage(true);
           await refreshUser();
           setTimeout(() => setShowRenewMessage(false), 6000);

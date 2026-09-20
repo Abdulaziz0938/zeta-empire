@@ -427,5 +427,34 @@ app.post('/api/vip/purchase', async (req, res) => {
   }
 });
 
+// ===== إعادة تعيين المهام اليومية إذا كان اليوم جديداً =====
+app.post('/api/tasks/reset', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const lastDate = user.lastTaskDate ? new Date(user.lastTaskDate) : null;
+    if (lastDate) lastDate.setHours(0, 0, 0, 0);
+
+    if (!lastDate || lastDate.getTime() !== today.getTime()) {
+      user.tasksCompletedToday = 0;
+      user.dailyEarnings = 0;
+      user.lastTaskDate = new Date();
+      await user.save();
+      return res.json({ success: true, message: 'تم إعادة تعيين المهام', tasksCompletedToday: 0, dailyEarnings: 0 });
+    }
+    return res.json({ success: true, message: 'المهام محدثة بالفعل', tasksCompletedToday: user.tasksCompletedToday, dailyEarnings: user.dailyEarnings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+
 app.listen(PORT, () => console.log(`🚀 يعمل على المنفذ ${PORT}`));
 module.exports = app;
