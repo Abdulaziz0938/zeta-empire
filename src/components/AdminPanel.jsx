@@ -153,7 +153,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
 
   // ===== جلب رسائل الدعم عند فتح التبويب =====
   useEffect(() => {
-    if (activeTab === 'support') {
+    if (false && activeTab === 'support') {
       fetchSupportMessages();
     }
   }, [activeTab]);
@@ -834,7 +834,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         {/* ============================================================ */}
         {/* ===== 6. الدعم ===== */}
         {/* ============================================================ */}
-        {activeTab === 'support' && (
+        {false && activeTab === 'support' && (
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
             <div className="flex justify-between items-center">
               <h3 className={`text-xl font-bold ${textColor} flex items-center gap-2`}>
