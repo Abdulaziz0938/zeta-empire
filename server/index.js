@@ -179,6 +179,17 @@ app.post('/api/auth/register', async (req, res) => {
     });
     await newUser.save();
 
+// ✅ إشعار عام عند تسجيل مستخدم جديد
+try {
+  const newUserNotif = new Notification({
+    message: `🎉 مستخدم جديد انضم للمنصة: ${userData.fullName || userData.phone}`,
+    type: 'success',
+    sender: 'النظام',
+    targetUserId: null
+  });
+  await newUserNotif.save();
+} catch (err) { console.error('فشل إشعار التسجيل:', err); }
+
     const token = jwt.sign({ id: newUser._id, phone: newUser.phone, isAdmin: newUser.isAdmin }, JWT_SECRET, { expiresIn: '7d' });
     const response = newUser.toObject();
     delete response.password;
@@ -223,6 +234,19 @@ app.post('/api/transactions', async (req, res) => {
     }
     const transaction = new Transaction({ userId, userName, phone, type, amount, network, address, txHash, fee, note, status: 'pending' });
     await transaction.save();
+
+// ✅ إشعار عند إنشاء طلب إيداع أو سحب
+try {
+  const typeLabel = type === 'deposit' ? '📥 إيداع' : '📤 سحب';
+  const txNotif = new Notification({
+    message: `${typeLabel} جديد بمبلغ $${amount} من ${userName || phone}`,
+    type: 'info',
+    sender: 'النظام',
+    targetUserId: null // عام (يراه الأدمن والجميع)
+  });
+  await txNotif.save();
+} catch (err) { console.error('فشل إشعار المعاملة:', err); }
+
     await saveAuditLog('النظام', `طلب ${type}`, { userId, amount });
     res.status(201).json({ success: true, transaction });
   } catch (error) { res.status(500).json({ success: false, message: error.message }); }
