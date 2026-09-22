@@ -233,6 +233,18 @@ app.post('/api/transactions', async (req, res) => {
     if (type === 'withdraw' && !ALLOWED_WITHDRAW_AMOUNTS.includes(Number(amount))) {
       return res.status(400).json({ success: false, message: `⚠️ مبلغ السحب غير مسموح به. المبالغ المسموحة: ${ALLOWED_WITHDRAW_AMOUNTS.join(', ')}` });
     }
+    // ✅ احتجاز المبلغ للسحب (يُخصم فوراً ويُعاد عند الرفض)
+    if (type === 'withdraw') {
+      const u = await User.findById(userId);
+      if (!u) return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
+      const bal = Number(u.balance) || 0;
+      if (bal < Number(amount)) {
+        return res.status(400).json({ success: false, message: '⚠️ الرصيد المتاح غير كافٍ' });
+      }
+      u.balance = bal - Number(amount);
+      await u.save();
+    }
+
     const transaction = new Transaction({ userId, userName, phone, type, amount, network, address, txHash, fee, note, status: 'pending' });
     await transaction.save();
 
@@ -336,8 +348,7 @@ app.put('/api/admin/approve/:txId', async (req, res) => {
       user.balance = (Number(user.balance) || 0) + tx.amount;
       user.totalDeposit = (Number(user.totalDeposit) || 0) + tx.amount;
     } else if (tx.type === 'withdraw') {
-      if (user.balance < tx.amount) return res.status(400).json({ success: false, message: 'الرصيد غير كافٍ' });
-      user.balance = (Number(user.balance) || 0) - tx.amount;
+      // ✅ الرصيد مُحتجز منذ الطلب — لا نخصم مرة أخرى
       user.totalWithdrawal = (Number(user.totalWithdrawal) || 0) + tx.amount;
     }
     await user.save();
@@ -364,6 +375,14 @@ app.put('/api/admin/reject/:txId', async (req, res) => {
     const tx = await Transaction.findById(txId);
     if (!tx) return res.status(404).json({ success: false, message: 'غير موجودة' });
     if (tx.status !== 'pending') return res.status(400).json({ success: false, message: `بحالة ${tx.status}` });
+    // ✅ إعادة المبلغ المحتجز للسحب المرفوض
+    if (tx.type === 'withdraw') {
+      const u = await User.findById(tx.userId);
+      if (u) {
+        u.balance = (Number(u.balance) || 0) + Number(tx.amount);
+        await u.save();
+      }
+    }
     tx.status = 'rejected'; tx.adminAction = 'تم الرفض'; await tx.save();
     processedTransactions.add(txId); setTimeout(() => processedTransactions.delete(txId), 600000);
     await saveAuditLog('المدير', `رفض طلب ${tx.type} #${txId}`, { userId: tx.userId, amount: tx.amount });

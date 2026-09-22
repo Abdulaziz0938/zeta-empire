@@ -1,5 +1,5 @@
 import { useZeta } from '../context/ZetaContext.jsx';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Wallet, 
   ArrowDownLeft, 
@@ -31,6 +31,28 @@ const ProfilePage = ({ lang = 'ar', setLang }) => {
   const [myMessages, setMyMessages] = useState([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const API_BASE = import.meta.env.VITE_API_URL || 'https://zeta-empire-backend.onrender.com';
+
+  // ===== سجل المعاملات (من الخادم) =====
+  const [userTransactions, setUserTransactions] = useState([]);
+  const [isLoadingTx, setIsLoadingTx] = useState(false);
+
+  const fetchMyTransactions = async () => {
+    const uid = user?._id || user?.id;
+    if (!uid) return;
+    setIsLoadingTx(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/transactions/user/${uid}`);
+      const data = await res.json();
+      if (data.success) setUserTransactions(data.transactions || []);
+    } catch (err) {
+      console.error('فشل جلب سجل المعاملات:', err);
+    } finally {
+      setIsLoadingTx(false);
+    }
+  };
+
+  useEffect(() => { fetchMyTransactions(); }, [user?._id]);
+
 
   // ============================================================
   // ✅ دوال نظام التواصل مع المشرف
@@ -143,9 +165,17 @@ const ProfilePage = ({ lang = 'ar', setLang }) => {
   };
 
   // ✅ استخدم مصفوفة فارغة بدلاً من البيانات الوهمية
-  const mockHistory = []; // حذف البيانات الوهمية بالكامل
+  const displayHistory = userTransactions.map(tx => ({
+    id: '#' + String(tx._id || '').slice(-6).toUpperCase(),
+    title: tx.type === 'deposit' ? '📥 طلب إيداع' : tx.type === 'withdraw' ? '📤 طلب سحب' : '💰 عمولة',
+    date: tx.createdAt ? new Date(tx.createdAt).toLocaleString('ar-EG') : '—',
+    amount: Number(tx.amount) || 0,
+    type: tx.type,
+    status: tx.status === 'approved' ? 'completed' : tx.status,
+    raw: tx
+  }));
 
-  const filteredHistory = mockHistory.filter(item => {
+  const filteredHistory = displayHistory.filter(item => {
     if (activeTab === 'all') return true;
     if (activeTab === 'deposit') return item.type === 'deposit';
     if (activeTab === 'withdraw') return item.type === 'withdraw';
