@@ -52,7 +52,10 @@ const ALLOWED_WITHDRAW_AMOUNTS = [14, 25, 50, 100, 200, 500, 1000];
 async function distributeReferralCommissions(userPhone, amount, type = 'deposit') {
   // نسب العمولات: المستوى الأول 5%، الثاني 3%، الثالث 1%
   const rates = [0.05, 0.03, 0.01];
-  let currentPhone = userPhone;
+  const originUser = await User.findOne({ phone: userPhone });
+  if (!originUser) { console.log(`⚠️ المستخدم الأصلي غير موجود: ${userPhone}`); return 0; }
+  // ✅ نبدأ من الرافد المباشر وليس من المستخدم نفسه
+  let currentPhone = originUser.parent;
   let level = 0;
   let totalCommissions = 0;
 
