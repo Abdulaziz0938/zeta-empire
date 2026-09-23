@@ -167,7 +167,7 @@ const ProfilePage = ({ lang = 'ar', setLang }) => {
   // ✅ استخدم مصفوفة فارغة بدلاً من البيانات الوهمية
   const displayHistory = userTransactions.map(tx => ({
     id: '#' + String(tx._id || '').slice(-6).toUpperCase(),
-    title: tx.type === 'deposit' ? '📥 طلب إيداع' : tx.type === 'withdraw' ? '📤 طلب سحب' : '💰 عمولة',
+    title: tx.type === 'deposit' ? '📥 طلب إيداع' : tx.type === 'withdraw' ? '📤 طلب سحب' : tx.type === 'purchase' ? '🎁 ترقية VIP' : '💰 عمولة',
     date: tx.createdAt ? new Date(tx.createdAt).toLocaleString('ar-EG') : '—',
     amount: Number(tx.amount) || 0,
     type: tx.type,
