@@ -31,13 +31,16 @@ async function saveAuditLog(admin, action, details = {}) {
 const processedTransactions = new Set();
 
 function isWithdrawTimeAllowed() {
+  // ✅ تحويل إلى توقيت دمشق (UTC+3) بغض النظر عن توقيت الخادم
   const now = new Date();
-  const dayOfWeek = now.getDay();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
+  const damascusStr = now.toLocaleString('en-US', { timeZone: 'Asia/Damascus' });
+  const damascus = new Date(damascusStr);
+  const dayOfWeek = damascus.getDay();   // 0 = الأحد
+  const hours = damascus.getHours();
+  const minutes = damascus.getMinutes();
   const currentTime = hours + minutes / 60;
-  if (dayOfWeek === 0) return false;
-  if (currentTime >= 12 && currentTime < 16) return true;
+  if (dayOfWeek === 0) return false;                    // الأحد مغلق
+  if (currentTime >= 12 && currentTime < 16) return true; // 12:00 → 15:59
   return false;
 }
 
