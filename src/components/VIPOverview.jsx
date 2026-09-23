@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from './Toast.jsx';
 import { 
   Crown, Zap, ArrowLeft, Award, Users, DollarSign, Lock, 
   CheckCircle2, TrendingUp, Calculator, Star, RefreshCw 
@@ -29,7 +30,7 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
   const handleCalculate = () => {
     const amount = parseFloat(depositInput);
     if (!amount || amount <= 0) {
-      alert('الرجاء إدخال مبلغ صحيح.');
+      toast.warning('الرجاء إدخال مبلغ صحيح.');
       return;
     }
     let selectedLevel = vipLevels[0];
@@ -51,11 +52,11 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
 
   const handlePurchaseVIP = async (targetLevel) => {
     if (!user) {
-      alert('يرجى تسجيل الدخول أولاً');
+      toast.info('يرجى تسجيل الدخول أولاً');
       return;
     }
     if (targetLevel <= userVip) {
-      alert(`⚠️ أنت بالفعل في VIP ${userVip} أو أعلى!`);
+      toast.warning(`⚠️ أنت بالفعل في VIP ${userVip} أو أعلى!`);
       return;
     }
     const vipPrice = vipLevels[targetLevel - 1]?.minDeposit || 0;
@@ -71,14 +72,14 @@ const VIPOverview = ({ lang = 'ar', onBack }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`✅ ${data.message}`);
+        toast.success(`✅ ${data.message}`);
         // ✅ تحديث بيانات المستخدم فوراً باستخدام Context
         await refreshUser();
       } else {
-        alert(`❌ ${data.message}`);
+        toast.error(`❌ ${data.message}`);
       }
     } catch (error) {
-      alert('❌ تعذر الاتصال بالخادم');
+      toast.error('❌ تعذر الاتصال بالخادم');
     } finally {
       setPurchaseLoading(false);
     }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { toast } from './Toast.jsx';
 import { Lock, Phone, User, KeyRound, Eye, EyeOff, Zap, Globe } from 'lucide-react';
 
 const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
@@ -85,7 +86,7 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
       if (formData.withdrawPin.join('').length < 6) { newErrors.withdrawPin = 'أدخل رمز السحب المكون من 6 أرقام'; hasError = true; }
     }
     setErrors(newErrors);
-    if (hasError) { alert('⚠️ يرجى تصحيح الأخطاء في النموذج.'); return false; }
+    if (hasError) { toast.warning('⚠️ يرجى تصحيح الأخطاء في النموذج.'); return false; }
     return true;
   };
 
@@ -113,12 +114,12 @@ const AuthPortal = ({ onAuthSuccess, lang = 'ar', setLang }) => {
       const data = await res.json();
       if (data.success) {
         onAuthSuccess(data.user);
-        alert(isLogin ? '✅ تم تسجيل الدخول بنجاح!' : '✅ تم إنشاء الحساب بنجاح!');
+        toast.success(isLogin ? '✅ تم تسجيل الدخول بنجاح!' : '✅ تم إنشاء الحساب بنجاح!');
       } else {
-        alert('❌ ' + (data.message || 'حدث خطأ غير معروف'));
+        toast.error('❌ ' + (data.message || 'حدث خطأ غير معروف'));
       }
     } catch (error) {
-      alert('❌ تعذر الاتصال بالخادم.');
+      toast.error('❌ تعذر الاتصال بالخادم.');
     } finally {
       setIsLoading(false);
     }
