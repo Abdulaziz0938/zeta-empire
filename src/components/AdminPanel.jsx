@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from './Toast.jsx';
 import { 
   ShieldAlert, CheckCircle2, XCircle, Clock, ArrowDownLeft, ArrowUpRight, 
   Search, RefreshCw, TrendingUp, Users, Wallet, AlertTriangle,
@@ -131,11 +132,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert('✅ تم إرسال الرد بنجاح');
+        toast.success('✅ تم إرسال الرد بنجاح');
         setReplyModal({ open: false, message: null, reply: '' });
         fetchSupportMessages();
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
     finally { setIsSendingReply(false); }
   };
 
@@ -145,10 +146,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const res = await fetch(`${API_BASE}/api/admin/support/${msgId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
-        alert('✅ تم حذف الرسالة');
+        toast.success('✅ تم حذف الرسالة');
         setSupportMessages(prev => prev.filter(m => m._id !== msgId));
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
   };
 
 
@@ -186,7 +187,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert('✅ تم قبول الطلب بنجاح');
+        toast.success('✅ تم قبول الطلب بنجاح');
         await updateCurrentUserIfMatch(data.user);
         setTransactions(prev => prev.map(tx => 
           tx._id === txId ? { ...tx, status: 'approved', adminAction: 'تم القبول بواسطة المدير' } : tx
@@ -199,10 +200,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         }, ...prev]);
         fetchData();
       } else {
-        alert('❌ ' + data.message);
+        toast.error('❌ ' + data.message);
       }
     } catch (error) {
-      alert('❌ خطأ في الاتصال بالخادم');
+      toast.error('❌ خطأ في الاتصال بالخادم');
     }
   };
 
@@ -217,7 +218,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const data = await res.json();
 
       if (data.success) {
-        alert('❌ تم رفض الطلب');
+        toast.success('❌ تم رفض الطلب');
         setTransactions(prev => prev.map(tx => 
           tx._id === txId ? { ...tx, status: 'rejected', adminAction: 'تم الرفض بواسطة المدير' } : tx
         ));
@@ -229,10 +230,10 @@ const AdminPanel = ({ onBack, onNavigate }) => {
         }, ...prev]);
         fetchData();
       } else {
-        alert('❌ ' + data.message);
+        toast.error('❌ ' + data.message);
       }
     } catch (error) {
-      alert('❌ خطأ في الاتصال بالخادم');
+      toast.error('❌ خطأ في الاتصال بالخادم');
     }
   };
 
@@ -243,11 +244,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const res = await fetch(`${API_BASE}/api/admin/promote/${userId}`, { method: 'PUT' });
       const data = await res.json();
       if (data.success) {
-        alert(`✅ تمت الترقية إلى VIP ${data.user.vipLevel}`);
+        toast.success(`✅ تمت الترقية إلى VIP ${data.user.vipLevel}`);
         await updateCurrentUserIfMatch(data.user);
         fetchData();
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
   };
 
   // ✅ تخفيض مستوى VIP
@@ -257,11 +258,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const res = await fetch(`${API_BASE}/api/admin/demote/${userId}`, { method: 'PUT' });
       const data = await res.json();
       if (data.success) {
-        alert(`✅ تم التخفيض إلى VIP ${data.user.vipLevel}`);
+        toast.success(`✅ تم التخفيض إلى VIP ${data.user.vipLevel}`);
         await updateCurrentUserIfMatch(data.user);
         fetchData();
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
   };
 
   // ✅ تجميد / إلغاء تجميد
@@ -271,11 +272,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       const res = await fetch(`${API_BASE}/api/admin/ban/${userId}`, { method: 'PUT' });
       const data = await res.json();
       if (data.success) {
-        alert(`✅ ${data.message}`);
+        toast.success(`✅ ${data.message}`);
         await updateCurrentUserIfMatch(data.user);
         fetchData();
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
   };
 
   // ✅ تعديل الرصيد
@@ -288,7 +289,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
 
   const handleConfirmEditBalance = async () => {
     if (!editAmount || isNaN(editAmount) || parseFloat(editAmount) === 0) {
-      alert('⚠️ الرجاء إدخال مبلغ صحيح (استخدم + للإضافة، - للخصم).');
+      toast.warning('⚠️ الرجاء إدخال مبلغ صحيح (استخدم + للإضافة، - للخصم).');
       return;
     }
     try {
@@ -299,12 +300,12 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`✅ ${data.message}`);
+        toast.success(`✅ ${data.message}`);
         setIsEditBalanceModalOpen(false);
         await updateCurrentUserIfMatch(data.user);
         fetchData();
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
   };
 
   // ✅ إرسال إشعار مخصص
@@ -316,7 +317,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
 
   const handleSendUserNotificationSubmit = async () => {
     if (!userNotificationMessage.trim()) {
-      alert('⚠️ الرجاء كتابة رسالة.');
+      toast.warning('⚠️ الرجاء كتابة رسالة.');
       return;
     }
     try {
@@ -327,16 +328,16 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`✅ تم إرسال الإشعار إلى ${selectedUser.fullName}`);
+        toast.success(`✅ تم إرسال الإشعار إلى ${selectedUser.fullName}`);
         setIsUserNotificationModalOpen(false);
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
   };
 
   // ✅ إرسال إشعار جماعي
   const handleSendNotification = async () => {
     if (!notificationMessage.trim()) {
-      alert('⚠️ الرجاء كتابة رسالة.');
+      toast.warning('⚠️ الرجاء كتابة رسالة.');
       return;
     }
     try {
@@ -347,11 +348,11 @@ const AdminPanel = ({ onBack, onNavigate }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert(`✅ ${data.message}`);
+        toast.success(`✅ ${data.message}`);
         setIsNotificationModalOpen(false);
         setNotificationMessage('');
-      } else alert('❌ ' + data.message);
-    } catch (error) { alert('❌ خطأ في الاتصال'); }
+      } else toast.error('❌ ' + data.message);
+    } catch (error) { toast.error('❌ خطأ في الاتصال'); }
   };
 
   // ===== الشارات والتصفية =====
@@ -768,7 +769,7 @@ const AdminPanel = ({ onBack, onNavigate }) => {
           <div className={`${cardBg} backdrop-blur-2xl border ${borderColor} rounded-3xl p-6 shadow-[0_0_20px_rgba(0,243,255,0.05)] space-y-4 transition-colors`}>
             <div className="flex justify-between items-center">
               <h3 className={`text-xl font-bold ${textColor} flex items-center gap-2`}><Award className="w-6 h-6 text-yellow-400" /> قائمة المسوقين</h3>
-              <button onClick={() => alert('✅ تم صرف المكافآت!')} className="px-6 py-2 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(250,204,21,0.4)] hover:shadow-[0_0_30px_rgba(250,204,21,0.6)] transition-all flex items-center gap-2">
+              <button onClick={() => toast.success('✅ تم صرف المكافآت!')} className="px-6 py-2 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 text-slate-950 font-bold text-sm shadow-[0_0_20px_rgba(250,204,21,0.4)] hover:shadow-[0_0_30px_rgba(250,204,21,0.6)] transition-all flex items-center gap-2">
                 <Send className="w-4 h-4" /> صرف المكافآت
               </button>
             </div>

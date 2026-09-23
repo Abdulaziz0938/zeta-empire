@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from './Toast.jsx';
 import { 
   X, ArrowDownLeft, ArrowUpRight, Copy, Check, 
   ShieldCheck, AlertCircle, Clock, Info, Wallet, User 
@@ -89,39 +90,39 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
 
     const userId = user?._id || user?.id;
     if (!userId) {
-      alert('⚠️ خطأ: لم يتم العثور على معرف المستخدم. الرجاء تسجيل الخروج والدخول مرة أخرى.');
+      toast.success('⚠️ خطأ: لم يتم العثور على معرف المستخدم. الرجاء تسجيل الخروج والدخول مرة أخرى.');
       return;
     }
 
     if (!amount || parsedAmount <= 0) {
-      alert('⚠️ الرجاء إدخال مبلغ صحيح.');
+      toast.warning('⚠️ الرجاء إدخال مبلغ صحيح.');
       return;
     }
 
     if (activeTab === 'withdraw') {
       if (!withdrawStatus.allowed) {
-        alert(withdrawStatus.reason);
+        toast.info(withdrawStatus.reason);
         return;
       }
       if (parsedAmount > balance) {
-        alert('⚠️ الرصيد المتاح غير كافٍ');
+        toast.warning('⚠️ الرصيد المتاح غير كافٍ');
         return;
       }
       
       if (network === 'ShamCash') {
         if (!shamCashName.trim()) {
-          alert('⚠️ الرجاء إدخال اسم حساب Sham Cash');
+          toast.warning('⚠️ الرجاء إدخال اسم حساب Sham Cash');
           return;
         }
         if (!shamCashAddress.trim()) {
-          alert('⚠️ الرجاء إدخال عنوان محفظة Sham Cash');
+          toast.warning('⚠️ الرجاء إدخال عنوان محفظة Sham Cash');
           return;
         }
       }
     }
 
     if (activeTab === 'deposit' && !txHash.trim()) {
-      alert('⚠️ الرجاء إدخال رقم المعاملة (Transaction Hash)');
+      toast.warning('⚠️ الرجاء إدخال رقم المعاملة (Transaction Hash)');
       return;
     }
 
@@ -164,10 +165,10 @@ const FinanceModal = ({ isOpen, onClose, balance = 0, user, initialTab = 'deposi
           onClose();
         }, 3000);
       } else {
-        alert('❌ ' + (data.message || 'حدث خطأ غير معروف'));
+        toast.error('❌ ' + (data.message || 'حدث خطأ غير معروف'));
       }
     } catch (error) {
-      alert('❌ تعذر الاتصال بالخادم.');
+      toast.error('❌ تعذر الاتصال بالخادم.');
     } finally {
       setIsSubmitting(false);
     }

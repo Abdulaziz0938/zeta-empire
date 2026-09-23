@@ -12,6 +12,7 @@ import ProfilePage from './components/ProfilePage.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
 import FinanceModal from './components/FinanceModal.jsx';
 import LiveToastSystem from './components/LiveToastSystem.jsx';
+import ToastContainer from './components/Toast.jsx';
 import { useZeta } from './context/ZetaContext.jsx';
 
 const App = () => {
@@ -32,6 +33,7 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-[#030914] text-white font-sans relative pb-28" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <ToastContainer />
       <LiveToastSystem user={user} />
       <FinanceModal 
         key={isFinanceOpen ? financeTab : 'closed'}

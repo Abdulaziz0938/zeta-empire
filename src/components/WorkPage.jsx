@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from './Toast.jsx';
 import { 
   Play, CheckCircle2, RefreshCw, Zap, ShieldCheck, DollarSign, 
   Lock, RotateCcw, Clock, TrendingUp, Award, Target, Crown 
@@ -185,7 +186,7 @@ const WorkPage = ({ lang = 'ar' }) => {
       try {
         const userId = user._id || user.id;
         if (!userId) {
-          alert('⚠️ لم يتم العثور على معرف المستخدم');
+          toast.success('⚠️ لم يتم العثور على معرف المستخدم');
           setIsProcessing(false);
           return;
         }
@@ -202,10 +203,10 @@ const WorkPage = ({ lang = 'ar' }) => {
           await refreshUser();
           setTimeout(() => setShowRenewMessage(false), 6000);
         } else {
-          alert('❌ ' + data.message);
+          toast.error('❌ ' + data.message);
         }
       } catch (error) {
-        alert('❌ تعذر الاتصال بالخادم.');
+        toast.error('❌ تعذر الاتصال بالخادم.');
       } finally {
         setIsProcessing(false);
       }

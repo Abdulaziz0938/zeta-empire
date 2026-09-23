@@ -1,4 +1,5 @@
 import { useZeta } from '../context/ZetaContext.jsx';
+import { toast } from './Toast.jsx';
 import React, { useState, useEffect } from 'react';
 import { 
   Wallet, 
@@ -68,11 +69,11 @@ const ProfilePage = ({ lang = 'ar', setLang }) => {
       });
       const data = await res.json();
       if (data.success) {
-        alert('✅ تم إرسال رسالتك للمشرف بنجاح');
+        toast.success('✅ تم إرسال رسالتك للمشرف بنجاح');
         setSupportMessage('');
         setIsSupportModalOpen(false);
-      } else alert('❌ ' + (data.message || 'حدث خطأ'));
-    } catch (error) { alert('❌ تعذر الاتصال بالخادم'); }
+      } else toast.error('❌ ' + (data.message || 'حدث خطأ'));
+    } catch (error) { toast.error('❌ تعذر الاتصال بالخادم'); }
     finally { setIsSending(false); }
   };
 
